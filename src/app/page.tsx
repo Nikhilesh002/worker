@@ -23,9 +23,9 @@ function Page() {
             </p>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
               <SignedIn>
-                <Link href="/dashboard">
+                <Link href="/chat">
                   <Button size="lg" className="w-full sm:w-auto">
-                    Go to Dashboard
+                    Chat now
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -34,8 +34,8 @@ function Page() {
               <SignedOut>
                 <SignInButton
                   mode="modal"
-                  fallbackRedirectUrl={"/dashboard"}
-                  forceRedirectUrl={"/dashboard"}
+                  fallbackRedirectUrl={"/chat"}
+                  forceRedirectUrl={"/chat"}
                 >
                   <Button size="lg" className="w-full sm:w-auto">
                     Sign In

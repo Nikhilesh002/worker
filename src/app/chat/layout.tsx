@@ -1,21 +1,15 @@
 "use client";
 
-import Header from "@/app/dashboard/_components/Header";
+import Header from "@/app/chat/_components/Header";
 import Sidebar from "@/components/custom/Sidebar";
-import {
-  NavigationContext,
-  NavigationContextProvider,
-} from "@/lib/NavigationContextProvider";
+import { NavigationContextProvider } from "@/lib/NavigationContextProvider";
 import { Authenticated } from "convex/react";
-import { use } from "react";
 
-export default function DashboardLayout({
+export default function ChatLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { isMobileNavOpen, closeMobileNav } = use(NavigationContext);
-
   return (
     <Authenticated>
       <NavigationContextProvider>

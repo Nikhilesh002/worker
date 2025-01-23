@@ -1,36 +1,30 @@
 import { NavigationContext } from "@/lib/NavigationContextProvider";
 import { useRouter } from "next/navigation";
-import React, { use, useState } from "react";
+import React, { use } from "react";
 import { Button } from "../ui/button";
 import { Menu, Plus } from "lucide-react";
-import { Chat } from "@/lib/types";
 import { Separator } from "../ui/separator";
-import Link from "next/link";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
+import RecentChats from "@/app/chat/_components/RecentChats";
 
 function Sidebar() {
   const router = useRouter();
   const { isMobileNavOpen, closeMobileNav } = use(NavigationContext);
 
-  const [chats, setChats] = useState<Chat[]>([]);
+  const chats = useQuery(api.chats.listChats);
+  const createChat = useMutation(api.chats.createChat);
+  const deleteChat = useMutation(api.chats.deleteChat);
 
-  const handleNewChatClick = () => {
-    // router.push("/chat/new");
-    console.log("New Chat");
-    console.log(isMobileNavOpen);
-    setChats([
-      {
-        id: "1",
-        name: "Chat 1 wajewbgrg iuegtierug ",
-      },
-      {
-        id: "2",
-        name: "Chat 2",
-      },
-      {
-        id: "3",
-        name: "Chat 3",
-      },
-    ]);
+  const handleNewChatClick = async () => {
+    const newChatId = await createChat({ title: "New Chat" });
+    router.push(`/chat/${newChatId}`);
+    closeMobileNav();
+  };
+
+  const handleDeleteChat = async (id: Id<"chats">) => {
+    await deleteChat({ id });
   };
 
   return (
@@ -61,29 +55,7 @@ function Sidebar() {
 
           <Separator />
 
-          <div className="">
-            {chats.length === 0 ? (
-              <div className="txt">No chats to display</div>
-            ) : (
-              <div className="space-y-2 mt-2 text-center">
-                {chats.map((chat) => (
-                  <Link
-                    href={`/chat/${chat.id}`}
-                    key={chat.id}
-                    className="flex items-center justify-between px-3 py-1"
-                  >
-                    <Button variant="outline" className="w-full bg-gray-900">
-                      <p className="text-sm font-thin">
-                        {chat.name.length > 25
-                          ? chat.name.substring(0, 25) + "..."
-                          : chat.name}
-                      </p>
-                    </Button>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+          <RecentChats chats={chats} handleDeleteChat={handleDeleteChat} />
         </div>
       )}
     </>
