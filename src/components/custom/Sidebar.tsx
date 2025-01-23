@@ -45,7 +45,7 @@ function Sidebar() {
                 <Menu />
               </Button>
             </div>
-            <h1 className="text-white text-xl font-bold font-serif">
+            <h1 className="text-rose-400 text-2xl font-bold font-serif">
               Your Chats
             </h1>
             <Button onClick={handleNewChatClick}>
@@ -55,7 +55,7 @@ function Sidebar() {
 
           <Separator />
 
-          <RecentChats chats={chats} handleDeleteChat={handleDeleteChat} />
+          <RecentChats chats={chats ?? []} handleDeleteChat={handleDeleteChat} />
         </div>
       )}
     </>

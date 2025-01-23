@@ -17,15 +17,23 @@ export const NavigationContext = createContext<NavigationContextType>({
 export function NavigationContextProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [isMobileNavOpen, setIsMobileNavOpen] = useState(true);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(() => {
+    return localStorage.getItem("isMobileNavOpen") === "true";
+  });
+
+  const setNavBarStatusLocalStorage = (isOpen: boolean) => {
+    localStorage.setItem("isMobileNavOpen", isOpen.toString());
+    setIsMobileNavOpen(isOpen);
+  };
 
   return (
     <NavigationContext.Provider
       value={{
         isMobileNavOpen,
-        setIsMobileNavOpen,
+        setIsMobileNavOpen: setNavBarStatusLocalStorage,
         closeMobileNav: () => {
           setIsMobileNavOpen(false);
+          localStorage.setItem("isMobileNavOpen", "false");
         },
       }}
     >

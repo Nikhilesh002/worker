@@ -12,7 +12,7 @@ function Header() {
   return (
     <div>
       {/* top */}
-      <div className="mt-4">
+      <div className="mt-4 fixed w-full z-90">
         <div className="flex justify-between items-center pe-4 pb-4">
           <div className="flex items-center">
             {!isMobileNavOpen && (
@@ -27,7 +27,7 @@ function Header() {
               </Button>
             )}
             <h1 className="text-2xl ms-2 font-bold text-white">
-              Chat with AI agent
+              Chat with <span className="text-orange-500">Worker</span>
             </h1>
           </div>
 
