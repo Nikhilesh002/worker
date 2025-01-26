@@ -16,3 +16,8 @@ export const functionalities = [
     color: "red-400",
   }
 ];
+
+
+export const SSE_DATA_PREFIX = "data: " as const;
+export const SSE_DONE_MESSAGE = "[DONE]" as const;
+export const SSE_DATA_DELIMITER = "\n\n" as const;

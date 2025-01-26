@@ -2,9 +2,19 @@
 
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowUp } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
+import { Doc, Id } from "../../../../convex/_generated/dataModel";
+import { IChatRequestBody, IMessage } from "@/lib/types";
 
-function CustomInput() {
+function CustomInput({
+  chatId,
+  messages,
+  setMessages,
+}: {
+  chatId: Id<"chats">;
+  messages: Doc<"messages">[];
+  setMessages: React.Dispatch<React.SetStateAction<Doc<"messages">[]>>;
+}) {
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [streamedResponse, setStreamedResponse] = useState<string>("");
@@ -13,10 +23,7 @@ function CustomInput() {
     input: unknown;
   } | null>(null);
 
-
   const handleSubmit = async () => {
-    console.log(inputValue);
-
     const trimmedInput = inputValue.trim();
 
     if (trimmedInput === "" || loading) return;
@@ -25,6 +32,58 @@ function CustomInput() {
     setStreamedResponse("");
     setCurrentTool(null);
     setLoading(true);
+
+    // optimistic UI (add immediately)
+    const optimisticUserMessage: Doc<"messages"> = {
+      _id: `temp_${Date.now()}` as Id<"messages">,
+      chatId,
+      content: trimmedInput,
+      role: "user",
+      createdAt: Date.now(),
+      _creationTime: Date.now(),
+    } as Doc<"messages">;
+
+    setMessages((prev) => [...prev, optimisticUserMessage]);
+
+    let aiResponse = "";
+
+    // start streaming
+    try {
+      const reqBody: IChatRequestBody = {
+        messages: messages.map((msg: IMessage) => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+        newMessage: trimmedInput,
+        chatId,
+      };
+
+      // initialize SSE conn (Server-sent Events)
+      const resp = await fetch("/api/chat/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(reqBody),
+      });
+
+      if (!resp.ok)  throw new Error(resp.statusText);
+      if(!resp.body) throw new Error("No response body");
+
+      // handle stream
+
+
+    } catch (error) {
+      console.error("Error with AI:", error);
+      // remove optimistically added msg
+      setMessages(
+        (prev) => prev.filter((msg) => msg._id !== optimisticUserMessage._id)
+      );
+      setLoading(false);
+      setStreamedResponse("Error occurred. Please try again.");
+    }
+
+    setLoading(false);
   };
 
   const keyDownHandler = (e: any) => {
@@ -42,7 +101,6 @@ function CustomInput() {
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);
-            console.log(e.target.value);
           }}
           placeholder="Type here"
           rows={3}
