@@ -2,7 +2,7 @@
 
 import Header from "@/app/chat/_components/Header";
 import Sidebar from "@/components/custom/Sidebar";
-import { NavigationContextProvider } from "@/lib/NavigationContextProvider";
+import { NavigationContextProvider } from "@/components/NavigationContext/NavigationContextProvider";
 import { Authenticated } from "convex/react";
 
 export default function ChatLayout({

@@ -3,7 +3,7 @@ import { Separator } from "@/components/ui/separator";
 import React, { use } from "react";
 import { Button } from "../../../components/ui/button";
 import { Menu } from "lucide-react";
-import { NavigationContext } from "@/lib/NavigationContextProvider";
+import { NavigationContext } from "@/components/NavigationContext/NavigationContextProvider";
 import { ModeToggle } from "@/components/ui/theme-toggler";
 
 function Header() {

@@ -1,4 +1,4 @@
-import { NavigationContext } from "@/lib/NavigationContextProvider";
+import { NavigationContext } from "@/components/NavigationContext/NavigationContextProvider";
 import { useRouter } from "next/navigation";
 import React, { use } from "react";
 import { Button } from "../ui/button";
@@ -55,7 +55,10 @@ function Sidebar() {
 
           <Separator />
 
-          <RecentChats chats={chats ?? []} handleDeleteChat={handleDeleteChat} />
+          <RecentChats
+            chats={chats ?? []}
+            handleDeleteChat={handleDeleteChat}
+          />
         </div>
       )}
     </>

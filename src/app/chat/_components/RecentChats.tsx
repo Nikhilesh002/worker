@@ -18,7 +18,7 @@ function RecentChats({
         ) : (
           <div className="space-y-2 mt-2 text-center">
             {chats.map((chat) => (
-              <div className="flex items-center justify-between bg-gray-900 px-3 py-1 w-full">
+              <div key={chat._id} className="flex items-center justify-between bg-gray-900 px-3 py-1 w-full">
                 <div className="">
                   <Link
                     href={`/chat/${chat._id}`}
