@@ -23,35 +23,35 @@ export enum IStreamMessageType {
 }
 
 export interface IBaseStreamMessage {
-  type: StreamMessageType;
+  type: IStreamMessageType;
 }
 
 export interface ITokenMessage extends IBaseStreamMessage {
-  type: StreamMessageType.Token;
+  type: IStreamMessageType.Token;
   token: string;
 }
 
 export interface IErrorMessage extends IBaseStreamMessage {
-  type: StreamMessageType.Error;
+  type: IStreamMessageType.Error;
   error: string;
 }
 
 export interface IConnectedMessage extends IBaseStreamMessage {
-  type: StreamMessageType.Connected;
+  type: IStreamMessageType.Connected;
 }
 
 export interface IDoneMessage extends IBaseStreamMessage {
-  type: StreamMessageType.Done;
+  type: IStreamMessageType.Done;
 }
 
 export interface IToolStartMessage extends IBaseStreamMessage {
-  type: StreamMessageType.ToolStart;
+  type: IStreamMessageType.ToolStart;
   tool: string;
   input: unknown;
 }
 
 export interface IToolEndMessage extends IBaseStreamMessage {
-  type: StreamMessageType.ToolEnd;
+  type: IStreamMessageType.ToolEnd;
   tool: string;
   output: unknown;
 }

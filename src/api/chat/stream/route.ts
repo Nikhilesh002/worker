@@ -1,5 +1,6 @@
 import {
   IChatRequestBody,
+  IMessage,
   IStreamMessage,
   IStreamMessageType,
 } from "@/lib/types";
@@ -11,6 +12,8 @@ import {
   SSE_DATA_PREFIX,
 } from "../../../../constants/constants";
 import { api } from "../../../../convex/_generated/api";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
+import { submitQuestion } from "@/lib/langgraph";
 
 const sendSSEMessage = (
   writer: WritableStreamDefaultWriter<Uint8Array>,
@@ -73,9 +76,42 @@ export async function POST(req: Request) {
         content: newMessage,
       });
 
-      //
+      // convert messages to Langchain format
+      const prevLangchainMessages = messages.map((msg: IMessage) => {
+        if (msg.role === "user") {
+          return new HumanMessage(msg.content);
+        }
+        return new AIMessage(msg.content);
+      });
+      const langchainMessages = [
+        ...prevLangchainMessages,
+        new HumanMessage(newMessage),
+      ];
+
+      try {
+        // create stream
+        const eventStream = await submitQuestion(langchainMessages,chatId);
+
+        // we r now getting stream of chunks from langgraph
+        for await (const event of eventStream){
+          console.log(event)
+        }
+      } catch (streamError) {
+        console.error("Error in streaming", streamError);
+        await sendSSEMessage(writer, {
+          type: IStreamMessageType.Error,
+          error:
+            streamError instanceof Error
+              ? streamError.message
+              : "Streaming failed",
+        });
+      }
     };
   } catch (error) {
-    return NextResponse.json({ error: "Error with LLM" }, { status: 401 });
+    console.error("Error with stream", error);
+    await sendSSEMessage(writer,{
+      type: IStreamMessageType.Error,
+      error: error instanceof Error ? error.message : "API error",
+    })
   }
 }
