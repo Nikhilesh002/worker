@@ -37,7 +37,7 @@ const toolNode = new ToolNode(tools);
 
 // trim messages
 const trimmer = trimMessages({
-  maxTokens: 10,
+  maxTokens: 4,
   tokenCounter: (msgs) => msgs.length,
   strategy: "last",
   allowPartial: true,
@@ -52,7 +52,7 @@ const initializeModel = async () => {
     temperature: 0.1,
     maxRetries: 2,
     maxOutputTokens: 4096,
-    streaming: true,
+    streaming: true, // so it return AIMessageChunk instead of AIMesssage
     cache: true,
     callbacks: [
       {
@@ -82,6 +82,30 @@ const initializeModel = async () => {
   return llm;
 };
 
+const call_llm = async (state: typeof MessagesAnnotation.State) => {
+  const llm = await initializeModel();
+
+  const systemContent = SYSTEM_MESSAGE;
+
+  // create prompt template
+  const promptTemplate = ChatPromptTemplate.fromMessages([
+    new SystemMessage(systemContent),
+    new MessagesPlaceholder("messages"),
+  ]);
+
+  // take only last messages
+  const trimmedMessages = await trimmer.invoke(state.messages);
+
+  // create prompt with PromptTemplate
+  const prompt = await promptTemplate.invoke({ messages: trimmedMessages });
+
+  // call LLM
+  const resp = await llm.invoke(prompt);
+
+  // return response
+  return { messages: [resp] };
+};
+
 const what_next = (state: typeof MessagesAnnotation.State): string => {
   const messages = state.messages;
   const lastMessage = messages[messages.length - 1] as AIMessage;
@@ -99,33 +123,11 @@ const what_next = (state: typeof MessagesAnnotation.State): string => {
 };
 
 const createWorkflow = async () => {
-  const llm = await initializeModel();
-
   const graph = new StateGraph(MessagesAnnotation);
 
   // add node named 'agent'
   graph
-    .addNode("call_llm", async (state) => {
-      const systemContent = SYSTEM_MESSAGE;
-
-      // create prompt template
-      const promptTemplate = ChatPromptTemplate.fromMessages([
-        new SystemMessage(systemContent),
-        new MessagesPlaceholder("messages"),
-      ]);
-
-      // take only last messages
-      const trimmedMessages = await trimmer.invoke(state.messages);
-
-      // create prompt with PromptTemplate
-      const prompt = await promptTemplate.invoke({ messages: trimmedMessages });
-
-      // call LLM
-      const resp = await llm.invoke(prompt);
-
-      // return response
-      return { messages: [resp] };
-    })
+    .addNode("call_llm", call_llm)
     .addNode("call_tool", toolNode) // connect with edges
     .addEdge(START, "call_llm")
     .addConditionalEdges("call_llm", what_next)
@@ -134,6 +136,16 @@ const createWorkflow = async () => {
   return graph;
 };
 
+const addCachingHeaders = (messages: BaseMessage[]):BaseMessage[] => {
+  // Rules of caching
+  // 1. cache system prompt
+  // 2. cache last msg (AIMsg)
+  // 3. cache last 2nd HumanMsg
+
+  return messages;
+}
+
+
 export const submitQuestion = async (
   messages: BaseMessage[],
   chatId: string
@@ -141,13 +153,17 @@ export const submitQuestion = async (
   const workflow = await createWorkflow();
 
   // create memory saver
-  const agentCheckPointer = new MemorySaver();
+  const memory = new MemorySaver();
 
-  const agent = workflow.compile({ checkpointer: agentCheckPointer });
+  // cache messages
+  const cachedMessages = addCachingHeaders(messages);
+
+  const agent = workflow.compile({ checkpointer: memory });
 
   const stream = await agent.streamEvents(
-    { messages },
+    { messages: cachedMessages }, // state
     {
+      // config
       version: "v2",
       configurable: {
         thread_id: chatId,
