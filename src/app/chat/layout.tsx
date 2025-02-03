@@ -15,7 +15,7 @@ export default function ChatLayout({
       <NavigationContextProvider>
         <div className="flex h-screen">
           <Sidebar />
-          <div className="flex-1 border-l-[3px] border-rose-500">
+          <div className="flex-1">
             <div className="">
               <Header />
               <main>{children}</main>

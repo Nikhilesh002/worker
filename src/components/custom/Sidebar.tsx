@@ -38,7 +38,7 @@ function Sidebar() {
       )} */}
 
       {isMobileNavOpen && (
-        <div className="h-full w-64 text-white text-center space-y-6">
+        <div className="h-full border-r-[3px] border-gray-600 w-64 text-white text-center space-y-6 overflow-auto">
           <div className="space-y-4 mt-4">
             <div className="flex ps-1 ">
               <Button variant={"ghost"} onClick={closeMobileNav}>

@@ -95,7 +95,7 @@ function CustomInput({
 
   return (
     <div className="w-full">
-      <div className="w-full border-l-2 border-r-[5px] border-b-[5px] border-t-[2px] border-orange-300 rounded-lg px-[10px]">
+      <div className="w-full border-l-2 border-r-[5px] border-b-[5px] border-t-[2px] border-orange-200 rounded-lg px-[10px]">
         <Textarea
           onKeyDown={keyDownHandler}
           value={inputValue}

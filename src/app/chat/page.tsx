@@ -1,3 +1,5 @@
+"use client";
+
 import InitialChatInterface from "./_components/InitialChatInterface";
 
 function page() {

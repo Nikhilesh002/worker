@@ -17,10 +17,10 @@ function InitialChatInterface() {
           chatId={"" as Id<"chats">}
         />
 
-        <div className="flex space-x-5 text-xs justify-center">
+        <div className="flex space-x-5 text-[12px] justify-center">
           {functionalities.map((fun, i) => (
-            <div key={i} className={`border-2 border-${fun.color}`}>
-              <p className={`text-${fun.color}`}>{fun.name}</p>
+            <div key={i} className={`border border-${fun.color} rounded`}>
+              <p className={`text-${fun.color} px-1 py-0.5`}>{fun.name}</p>
             </div>
           ))}
         </div>

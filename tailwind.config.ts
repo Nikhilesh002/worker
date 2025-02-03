@@ -1,11 +1,21 @@
 import type { Config } from "tailwindcss";
 
 export default {
-    darkMode: ["class"],
-    content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+	darkMode: ["class"],
+	content: [
+	"./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+	"./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+	"./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+	safelist: [
+    "border-blue-400",
+    "text-blue-400",
+    "border-orange-400",
+    "text-orange-400",
+    "border-lime-400",
+    "text-lime-400",
+    "border-red-400",
+    "text-red-400",
   ],
   theme: {
   	extend: {
