@@ -5,6 +5,7 @@ import { ArrowUp } from "lucide-react";
 import React, { useState } from "react";
 import { Doc, Id } from "../../../../convex/_generated/dataModel";
 import { IChatRequestBody, IMessage } from "@/lib/types";
+import { createSSEParser } from "@/lib/createSSEParser";
 
 function CustomInput({
   chatId,
@@ -23,10 +24,16 @@ function CustomInput({
     input: unknown;
   } | null>(null);
 
+  const processStream = async (
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    onChunk: (chunk: string) => Promise<void>
+  ) => {};
+
   const handleSubmit = async () => {
     const trimmedInput = inputValue.trim();
 
     if (trimmedInput === "" || loading) return;
+
 
     setInputValue("");
     setStreamedResponse("");
@@ -43,9 +50,11 @@ function CustomInput({
       _creationTime: Date.now(),
     } as Doc<"messages">;
 
-    setMessages((prev) => [...prev, optimisticUserMessage]);
+    setMessages([...messages, optimisticUserMessage]);
 
-    let aiResponse = "";
+    console.log([...messages, optimisticUserMessage]);
+
+    let aiResponse = "slibvkognlbf";
 
     // start streaming
     try {
@@ -67,17 +76,18 @@ function CustomInput({
         body: JSON.stringify(reqBody),
       });
 
-      if (!resp.ok)  throw new Error(resp.statusText);
-      if(!resp.body) throw new Error("No response body");
+      if (!resp.ok) throw new Error(resp.statusText);
+      if (!resp.body) throw new Error("No response body");
 
       // handle stream
-
-
+      // create SSE parser and stream reader
+      const parser = createSSEParser();
+      const reader = resp.body.getReader();
     } catch (error) {
       console.error("Error with AI:", error);
       // remove optimistically added msg
-      setMessages(
-        (prev) => prev.filter((msg) => msg._id !== optimisticUserMessage._id)
+      setMessages((prev) =>
+        prev.filter((msg) => msg._id !== optimisticUserMessage._id)
       );
       setLoading(false);
       setStreamedResponse("Error occurred. Please try again.");

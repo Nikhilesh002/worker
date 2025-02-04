@@ -15,7 +15,6 @@ function Sidebar() {
 
   const chats = useQuery(api.chats.listChats);
   const createChat = useMutation(api.chats.createChat);
-  const deleteChat = useMutation(api.chats.deleteChat);
 
   const handleNewChatClick = async () => {
     const newChatId = await createChat({ title: "New Chat" });
@@ -23,6 +22,7 @@ function Sidebar() {
     closeMobileNav();
   };
 
+  const deleteChat = useMutation(api.chats.deleteChat);
   const handleDeleteChat = async (id: Id<"chats">) => {
     await deleteChat({ id });
   };

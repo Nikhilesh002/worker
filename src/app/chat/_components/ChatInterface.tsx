@@ -34,19 +34,21 @@ function ChatInterface({
   return (
     <main className="w-1/2 flex flex-col mx-auto h-[calc(100vh-theme(spacing.20))]">
       <section className="flex-1">
-        {
-          messages.map((message, i) => (
-            <div key={i} className="flex">
-              <p className="px-2 py-1 text-sm">{message.content}</p>
-            </div>
-          ))
-        }
+        {messages.map((message, i) => (
+          <div key={i} className="flex">
+            <p className="px-2 py-1 text-sm">{message.content}</p>
+          </div>
+        ))}
         <div ref={messageEndRef} />
       </section>
 
       <div></div>
 
-      <CustomInput chatId={chatId} messages={messages} setMessages={setMessages} />
+      <CustomInput
+        chatId={chatId}
+        messages={messages}
+        setMessages={setMessages}
+      />
     </main>
   );
 }
