@@ -21,7 +21,6 @@ import {
 } from "@langchain/core/messages";
 
 // customers at: https://introspection.apis.stepzen.com/customers
-
 // coments at: https://dummyjson.com/comments
 
 // connect to wxflows
@@ -136,15 +135,29 @@ const createWorkflow = async () => {
   return graph;
 };
 
-const addCachingHeaders = (messages: BaseMessage[]):BaseMessage[] => {
+const addCachingHeaders = (messages: BaseMessage[]): BaseMessage[] => {
   // Rules of caching
   // 1. cache system prompt
   // 2. cache last msg (AIMsg)
   // 3. cache last 2nd HumanMsg
 
   return messages;
-}
+};
 
+const summariseMessages = (messages: BaseMessage[]): BaseMessage[] => {
+  // Rules of summarisation
+  // 1. if len<6 return messages
+  // 2. else summarize
+
+  return messages;
+};
+
+const optimiseMessages = (messages: BaseMessage[]): BaseMessage[] => {
+  const summarisedMessages = summariseMessages(messages);
+  const cachedMessages = addCachingHeaders(messages);
+
+  return summarisedMessages;
+};
 
 export const submitQuestion = async (
   messages: BaseMessage[],
@@ -161,7 +174,7 @@ export const submitQuestion = async (
   const agent = workflow.compile({ checkpointer: memory });
 
   const stream = await agent.streamEvents(
-    { messages: cachedMessages }, // state
+    { messages: optimiseMessages(messages) }, // state
     {
       // config
       version: "v2",
@@ -172,6 +185,8 @@ export const submitQuestion = async (
       runId: chatId,
     }
   );
+
+  console.log(JSON.stringify(stream))
 
   return stream;
 };

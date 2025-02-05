@@ -6,12 +6,13 @@ import {
 } from "@/lib/types";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getConvexClient } from "../../../../convex/convex";
+import { getConvexClient } from "../../../../../convex/convex";
 import {
   SSE_DATA_DELIMITER,
   SSE_DATA_PREFIX,
-} from "../../../../constants/constants";
-import { api } from "../../../../convex/_generated/api";
+  SSE_DONE_MESSAGE,
+} from "../../../../../constants/constants";
+import { api } from "../../../../../convex/_generated/api";
 import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import { submitQuestion } from "@/lib/langgraph";
 
@@ -121,7 +122,7 @@ export async function POST(req: Request) {
           }
 
           // send completion msg without storing resp
-          await sendSSEMessage(writer, { type: IStreamMessageType.Done });
+          await sendSSEMessage(writer, { type: IStreamMessageType.Done, message: SSE_DONE_MESSAGE });
         } catch (streamError) {
           console.error("Error in streaming", streamError);
           await sendSSEMessage(writer, {

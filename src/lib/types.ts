@@ -1,3 +1,4 @@
+import { SSE_DONE_MESSAGE } from './../../constants/constants';
 import { Id } from "../../convex/_generated/dataModel";
 
 export type IMessageRole = "user" | "assistant";
@@ -42,6 +43,7 @@ export interface IConnectedMessage extends IBaseStreamMessage {
 
 export interface IDoneMessage extends IBaseStreamMessage {
   type: IStreamMessageType.Done;
+  message: typeof SSE_DONE_MESSAGE
 }
 
 export interface IToolStartMessage extends IBaseStreamMessage {

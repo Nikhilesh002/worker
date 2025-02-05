@@ -1,8 +1,13 @@
 import { IStreamMessageType, IStreamMessage } from "./types";
-import { SSE_DONE_MESSAGE, SSE_DATA_PREFIX } from "./../../constants/constants";
+import {
+  SSE_DATA_PREFIX,
+  SSE_DATA_DELIMITER,
+} from "./../../constants/constants";
 
 // create parser for SSE streams
-export function createSSEParser() {
+export const createSSEParser = () => {
+  // very good way, this will give buffer to each of the functin call
+  // each function call will create its own ind buffer.
   let buffer = "";
 
   const parse = (chunk: string): IStreamMessage[] => {
@@ -12,35 +17,36 @@ export function createSSEParser() {
     // set last line, if no line exists, set ""
     buffer = lines.pop() || "";
 
-    return lines
-      .map((line) => {
-        const trimmedLine = line.trim();
+    const extractedMessaages: IStreamMessage[] = [];
 
-        // if line is empty or not in expected format, return null
-        if (!trimmedLine || !trimmedLine.startsWith(SSE_DATA_PREFIX))
-          return null;
+    for (let line of lines) {
+      const trimmedLine = line.trim();
+      // data: the_actual_content\n\n
+      // prefix the_actual_content(nothing)delimiter
 
-        const msg = trimmedLine.replace(SSE_DATA_PREFIX, "");
+      // if line is empty or not in expected format, return null
+      if (!trimmedLine || !trimmedLine.startsWith(SSE_DATA_PREFIX)) continue;
 
-        // if msg is done message, return done message
-        if (msg === SSE_DONE_MESSAGE) {
-          return { type: IStreamMessageType.Done };
-        }
+      const msg = trimmedLine.slice(
+        SSE_DATA_PREFIX.length,
+        trimmedLine.length - SSE_DATA_DELIMITER.length
+      );
 
-        try {
-          const parsed = JSON.parse(msg) as IStreamMessage;
-          return Object.values(IStreamMessageType).includes(parsed.type)
-            ? parsed
-            : null;
-        } catch (error) {
-          return {
-            type: IStreamMessageType.Error,
-            error: "Failed to parse SSE message",
-          };
-        }
-      })
-      .filter((msg): msg is IStreamMessage => msg !== null);
+      try {
+        const parsed = JSON.parse(msg) as IStreamMessage;
+        if (Object.values(IStreamMessageType).includes(parsed.type)) {
+          extractedMessaages.push(parsed);
+        } else throw new Error();
+      } catch (error) {
+        extractedMessaages.push({
+          type: IStreamMessageType.Error,
+          error: "Failed to parse SSE message",
+        });
+      }
+    }
+
+    return extractedMessaages;
   };
 
   return { parse };
-}
+};
