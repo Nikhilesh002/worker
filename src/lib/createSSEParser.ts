@@ -6,46 +6,54 @@ import {
 
 // create parser for SSE streams
 export const createSSEParser = () => {
-  // very good way, this will give buffer to each of the functin call
-  // each function call will create its own ind buffer.
   let buffer = "";
 
   const parse = (chunk: string): IStreamMessage[] => {
-    // append chunk to buffer and split into lines
-    const lines = (buffer + chunk).split("\n");
+    console.log({ chunk });
 
-    // set last line, if no line exists, set ""
+    // Append chunk to buffer and split into lines
+    const lines = (buffer + chunk).split("\n\n");
+    console.log({ lines });
+
+    // Keep the last incomplete line in the buffer
     buffer = lines.pop() || "";
 
-    const extractedMessaages: IStreamMessage[] = [];
+    const extractedMessages: IStreamMessage[] = [];
 
     for (let line of lines) {
-      const trimmedLine = line.trim();
-      // data: the_actual_content\n\n
-      // prefix the_actual_content(nothing)delimiter
+      // Remove extra backslashes added before quotes
+      line = line.replace(/\\(?=["'])/g, ""); 
 
-      // if line is empty or not in expected format, return null
+      const trimmedLine = line.trim();
+
+      // Skip empty or invalid lines
       if (!trimmedLine || !trimmedLine.startsWith(SSE_DATA_PREFIX)) continue;
 
+      // Extract the actual message content
       const msg = trimmedLine.slice(
         SSE_DATA_PREFIX.length,
-        trimmedLine.length - SSE_DATA_DELIMITER.length
+        trimmedLine.length
       );
 
+      console.log({ msg });
+
       try {
-        const parsed = JSON.parse(msg) as IStreamMessage;
+        // Parse the JSON message correctly
+        const parsed = JSON.parse(msg);
+
+        // Validate the message type
         if (Object.values(IStreamMessageType).includes(parsed.type)) {
-          extractedMessaages.push(parsed);
+          extractedMessages.push(parsed);
         } else throw new Error();
       } catch (error) {
-        extractedMessaages.push({
+        extractedMessages.push({
           type: IStreamMessageType.Error,
           error: "Failed to parse SSE message",
         });
       }
     }
 
-    return extractedMessaages;
+    return extractedMessages;
   };
 
   return { parse };

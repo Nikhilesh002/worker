@@ -14,18 +14,19 @@ import {
 } from "../../../../../constants/constants";
 import { api } from "../../../../../convex/_generated/api";
 import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
-import { submitQuestion } from "@/lib/langgraph";
+import { submitQuestion } from "@/lib/langgraph/graph";
+
+export const dynamic = "force-dynamic";
 
 const sendSSEMessage = async (
   writer: WritableStreamDefaultWriter<Uint8Array>,
   message: IStreamMessage
 ) => {
   const encoder = new TextEncoder();
-  return writer.write(
-    encoder.encode(
-      `${SSE_DATA_PREFIX}${JSON.stringify(message)}${SSE_DATA_DELIMITER}`
-    )
-  );
+  const payload = `${SSE_DATA_PREFIX}${JSON.stringify(
+    message
+  )}${SSE_DATA_DELIMITER}`;
+  return writer.write(encoder.encode(payload));
 };
 
 export async function POST(req: Request) {
@@ -53,9 +54,10 @@ export async function POST(req: Request) {
 
     const resp = new Response(stream.readable, {
       headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        connction: "keep-alive",
+        Connection: "keep-alive",
+        "Content-Encoding": "none",
+        "Cache-Control": "no-cache, no-transform",
+        "Content-Type": "text/event-stream; charset=utf-8",
         "X-Accel-Buffering": "no", // disable buffering for nginx which is req for SSE to work properly
       },
     });
@@ -65,11 +67,12 @@ export async function POST(req: Request) {
         // send initial connected message
         await sendSSEMessage(writer, { type: IStreamMessageType.Connected });
 
-        // store user's newMessage in db
-        await convex.mutation(api.messages.sendMessage, {
-          chatId,
-          content: newMessage,
-        });
+        // storing from frontend
+        // // store user's newMessage in db
+        // await convex.mutation(api.messages.sendMessage, {
+        //   chatId,
+        //   content: newMessage,
+        // });
 
         // convert messages to Langchain format
         const prevLangchainMessages = messages.map((msg: IMessage) => {
@@ -90,13 +93,12 @@ export async function POST(req: Request) {
 
           // we r now getting stream of chunks from langgraph
           for await (const event of eventStream) {
-            console.log(event);
+            console.log({ event });
             if (event.event === "on_chat_model_stream") {
               const token = event.data.chunk;
 
               if (token) {
-                const textContent = token.content.at(0)?.["text"];
-
+                const textContent = token.content;
                 if (textContent) {
                   await sendSSEMessage(writer, {
                     type: IStreamMessageType.Token,
@@ -122,7 +124,10 @@ export async function POST(req: Request) {
           }
 
           // send completion msg without storing resp
-          await sendSSEMessage(writer, { type: IStreamMessageType.Done, message: SSE_DONE_MESSAGE });
+          await sendSSEMessage(writer, {
+            type: IStreamMessageType.Done,
+            message: SSE_DONE_MESSAGE,
+          });
         } catch (streamError) {
           console.error("Error in streaming", streamError);
           await sendSSEMessage(writer, {

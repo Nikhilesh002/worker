@@ -52,7 +52,7 @@ function CustomInput({
 
     setMessages([...messages, optimisticUserMessage]);
 
-    console.log([...messages, optimisticUserMessage]);
+    // console.log([...messages, optimisticUserMessage]);
 
     let aiResponse = "slibvkognlbf";
 

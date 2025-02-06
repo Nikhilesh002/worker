@@ -97,7 +97,7 @@ function ChatInterface({
       const resp = await fetch("/api/chat/stream", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "text/event-stream",
         },
         body: JSON.stringify(reqBody),
       });
@@ -113,6 +113,7 @@ function ChatInterface({
       //
       await processStream(reader, async (chunk) => {
         const receivedMessages = parser.parse(chunk);
+        console.log({receivedMessages})
 
         for (let msg of receivedMessages) {
           switch (msg.type) {
