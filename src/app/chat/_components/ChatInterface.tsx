@@ -49,7 +49,7 @@ function ChatInterface({
 
     if (trimmedInput === "" || loading) return;
 
-    // TODO setInputValue("");
+    // setInputValue("");
     setStreamedResponse("");
     setCurrentTool(null);
     setLoading(true);
@@ -187,7 +187,6 @@ function ChatInterface({
 
             case IStreamMessageType.Error:
               if (IStreamMessageType.Error in msg) {
-                console.log("hola wesrgdthfyu");
                 throw new Error();
               }
               break;

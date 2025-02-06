@@ -6,7 +6,7 @@ import ChatInterface from "../_components/ChatInterface";
 import { Id } from "../../../../convex/_generated/dataModel";
 
 async function page({ params }: { params: Promise<{ chatId: string }>}) {
-  console.log({params})
+
   const { chatId } = await params;
 
   // user auth

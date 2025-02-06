@@ -24,6 +24,7 @@ const sendSSEMessage = async (
   const payload = `${SSE_DATA_PREFIX}${JSON.stringify(
     message
   )}${SSE_DATA_DELIMITER}`;
+  console.log({ payload });
   return writer.write(encoder.encode(payload));
 };
 
@@ -53,8 +54,8 @@ export async function POST(req: Request) {
     const resp = new Response(stream.readable, {
       headers: {
         Connection: "keep-alive",
-        "Content-Encoding": "none",
-        "Cache-Control": "no-cache, no-transform",
+        // "Content-Encoding": "none",
+        "Cache-Control": "no-cache",
         "Content-Type": "text/event-stream; charset=utf-8",
         "X-Accel-Buffering": "no", // disable buffering for nginx which is req for SSE to work properly
       },
@@ -91,12 +92,19 @@ export async function POST(req: Request) {
 
           // we r now getting stream of chunks from langgraph
           for await (const event of eventStream) {
-            console.log({ event });
+            console.log({ event: JSON.stringify(event) });
             if (event.event === "on_chat_model_stream") {
               const token = event.data.chunk;
 
               if (token) {
-                const textContent = token.content;
+                let textContent: string = token.content;
+                if (textContent.includes("```json")) {
+                  textContent = textContent
+                    .replace("```json", "")
+                    .replace("```", "")
+                    .replace('\n', "")
+                    .replace('\\"', '"')
+                }
                 if (textContent) {
                   await sendSSEMessage(writer, {
                     type: IStreamMessageType.Token,
@@ -105,12 +113,14 @@ export async function POST(req: Request) {
                 }
               }
             } else if (event.event === "on_tool_start") {
+              // console.log("tool start",{event})
               await sendSSEMessage(writer, {
                 type: IStreamMessageType.ToolStart,
                 tool: event.name || "unknown",
                 input: event.data.input,
               });
             } else if (event.event === "on_tool_end") {
+              // console.log("tool end",{event})
               const toolMessage = new ToolMessage(event.data.output);
 
               await sendSSEMessage(writer, {

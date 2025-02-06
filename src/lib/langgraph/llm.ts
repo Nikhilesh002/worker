@@ -10,7 +10,7 @@ import { tools } from "./tools";
 
 export const initializeModel = async () => {
   const llm = new ChatGoogleGenerativeAI({
-    model: "gemini-1.5-flash",
+    model: "gemini-1.5-pro",
     apiKey: process.env.GOOGLE_API_KEY,
     temperature: 0.1,
     maxRetries: 2,
@@ -45,6 +45,8 @@ export const initializeModel = async () => {
       },
     ],
   }).bindTools(tools);
+
+  // console.log({tools})
 
   return llm;
 };

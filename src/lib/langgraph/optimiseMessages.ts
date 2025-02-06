@@ -21,5 +21,5 @@ export const optimiseMessages = (messages: BaseMessage[]): BaseMessage[] => {
   const summarisedMessages = summariseMessages(messages);
   // const cachedMessages = addCachingHeaders(messages);
 
-  return summarisedMessages;
+  return summarisedMessages.slice(-4);
 };

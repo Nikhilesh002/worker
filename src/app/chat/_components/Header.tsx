@@ -16,7 +16,6 @@ function Header() {
             <Button
               variant="ghost"
               onClick={() => {
-                console.log(isMobileNavOpen);
                 setIsMobileNavOpen(!isMobileNavOpen);
               }}
             >
