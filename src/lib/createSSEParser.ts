@@ -1,17 +1,16 @@
 import { IStreamMessageType, IStreamMessage } from "./types";
 import {
   SSE_DATA_PREFIX,
-  SSE_DATA_DELIMITER,
 } from "./../../constants/constants";
 
 // create parser for SSE streams
 export const createSSEParser = () => {
-  let buffer = "";
+  // let buffer = "";
 
   const parse = (chunk: string): IStreamMessage[] => {
 
     // Append chunk to buffer and split into lines
-    const lines = (buffer + chunk).split("\n\n");
+    const lines = chunk.split("\n\n");
 
     // Keep the last incomplete line in the buffer
     // buffer = lines.pop() || "";
@@ -46,7 +45,7 @@ export const createSSEParser = () => {
       } catch (error) {
         extractedMessages.push({
           type: IStreamMessageType.Error,
-          error: "Failed to parse SSE message",
+          error: error instanceof Error ? error.message : "Error parsing SSE",
         });
       }
     }

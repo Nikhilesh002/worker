@@ -1,13 +1,13 @@
 import { BaseMessage } from "@langchain/core/messages";
 
-const addCachingHeaders = (messages: BaseMessage[]): BaseMessage[] => {
-  // Rules of caching
-  // 1. cache system prompt
-  // 2. cache last msg (AIMsg)
-  // 3. cache last 2nd HumanMsg
+// const addCachingHeaders = (messages: BaseMessage[]): BaseMessage[] => {
+//   // Rules of caching
+//   // 1. cache system prompt
+//   // 2. cache last msg (AIMsg)
+//   // 3. cache last 2nd HumanMsg
 
-  return messages;
-};
+//   return messages;
+// };
 
 const summariseMessages = (messages: BaseMessage[]): BaseMessage[] => {
   // Rules of summarisation
@@ -19,7 +19,7 @@ const summariseMessages = (messages: BaseMessage[]): BaseMessage[] => {
 
 export const optimiseMessages = (messages: BaseMessage[]): BaseMessage[] => {
   const summarisedMessages = summariseMessages(messages);
-  const cachedMessages = addCachingHeaders(messages);
+  // const cachedMessages = addCachingHeaders(messages);
 
   return summarisedMessages;
 };

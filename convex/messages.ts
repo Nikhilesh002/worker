@@ -6,7 +6,7 @@ const SHOW_COMMENTS = false;
 
 export const listMessages = query({
   args: {
-    chatId: v.id("chats"),
+    chatId: v.id("chats")
   },
   handler: async (ctx, args) => {
     try {
@@ -18,9 +18,9 @@ export const listMessages = query({
         .order("asc")
         .collect();
 
-      if (SHOW_COMMENTS) {
-        console.log("messages", messages);
-      }
+      // if (SHOW_COMMENTS) {
+      //   console.log("messages", messages);
+      // }
 
       return messages;
     } catch (error) {

@@ -6,13 +6,11 @@ import {
 } from "@/lib/types";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getConvexClient } from "../../../../../convex/convex";
 import {
   SSE_DATA_DELIMITER,
   SSE_DATA_PREFIX,
   SSE_DONE_MESSAGE,
 } from "../../../../../constants/constants";
-import { api } from "../../../../../convex/_generated/api";
 import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import { submitQuestion } from "@/lib/langgraph/graph";
 
@@ -46,7 +44,7 @@ export async function POST(req: Request) {
     //   );
     // }
 
-    const convex = await getConvexClient();
+    // const convex = await getConvexClient();
 
     // create stream with larger queue stratagy for greater throughput
     const stream = new TransformStream({}, { highWaterMark: 1024 });

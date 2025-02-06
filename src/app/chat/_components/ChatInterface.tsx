@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Doc, Id } from "../../../../convex/_generated/dataModel";
-import InitialChatInterface from "./InitialChatInterface";
 import { Textarea } from "@/components/ui/textarea";
 import { IChatRequestBody, IMessage, IStreamMessageType } from "@/lib/types";
 import { createSSEParser } from "@/lib/createSSEParser";
@@ -115,7 +114,7 @@ function ChatInterface({
         const receivedMessages = parser.parse(chunk);
         console.log({ receivedMessages });
 
-        for (let msg of receivedMessages) {
+        for (const msg of receivedMessages) {
           switch (msg.type) {
             case IStreamMessageType.Token:
               if ("token" in msg) {

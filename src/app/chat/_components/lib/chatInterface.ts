@@ -1,4 +1,4 @@
-export const keyDownHandler = (e: any, funToBeCalled: () => void) => {
+export const keyDownHandler = (e: React.KeyboardEvent<HTMLTextAreaElement>, funToBeCalled: () => void) => {
   if (e.key === "Enter" && e.ctrlKey) {
     e.preventDefault();
     funToBeCalled();

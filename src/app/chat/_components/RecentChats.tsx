@@ -2,6 +2,17 @@ import { Trash2 } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 import { Doc, Id } from "../../../../convex/_generated/dataModel";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function RecentChats({
   chats,
@@ -18,8 +29,11 @@ function RecentChats({
         ) : (
           <div className="space-y-2 mt-2 text-center">
             {chats.map((chat) => (
-              <div key={chat._id} className="flex items-center justify-between bg-gray-900 px-3 py-1 w-full">
-                <div className="">
+              <div
+                key={chat._id}
+                className="flex items-center justify-between bg-gray-900 px-3 py-1 w-full"
+              >
+                <div className="w-full pe-2">
                   <Link
                     href={`/chat/${chat._id}`}
                     key={chat._id}
@@ -38,9 +52,29 @@ function RecentChats({
                 </div>
                 <button
                   className="hover:text-red-400"
-                  onClick={() => handleDeleteChat(chat._id)}
+                  // onClick={() => handleDeleteChat(chat._id)}
                 >
-                  <Trash2 />
+                  <AlertDialog>
+                    <AlertDialogTrigger>
+                      <Trash2 />
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently
+                          delete your account and remove your data from our
+                          servers.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => {console.log("hi not deleted")}}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteChat(chat._id)}>Continue</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </button>
               </div>
             ))}
