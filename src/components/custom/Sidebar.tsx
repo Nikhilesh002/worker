@@ -40,14 +40,14 @@ function Sidebar() {
       {isMobileNavOpen && (
         <div className="h-full border-r-[3px] border-gray-600 w-64 text-white text-center space-y-6 overflow-auto">
           <div className="space-y-4 mt-4">
-            <div className="flex ps-1 ">
+            <div className="flex space-x-5 items-center">
               <Button variant={"ghost"} onClick={closeMobileNav}>
                 <Menu />
               </Button>
-            </div>
             <h1 className="text-rose-400 text-2xl font-bold font-serif">
               Your Chats
             </h1>
+            </div>
             <Button onClick={handleNewChatClick}>
               New Chat <Plus />
             </Button>

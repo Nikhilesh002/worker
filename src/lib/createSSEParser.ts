@@ -9,14 +9,12 @@ export const createSSEParser = () => {
   let buffer = "";
 
   const parse = (chunk: string): IStreamMessage[] => {
-    console.log({ chunk });
 
     // Append chunk to buffer and split into lines
     const lines = (buffer + chunk).split("\n\n");
-    console.log({ lines });
 
     // Keep the last incomplete line in the buffer
-    buffer = lines.pop() || "";
+    // buffer = lines.pop() || "";
 
     const extractedMessages: IStreamMessage[] = [];
 

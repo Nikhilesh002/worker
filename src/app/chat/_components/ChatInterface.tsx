@@ -113,34 +113,32 @@ function ChatInterface({
       //
       await processStream(reader, async (chunk) => {
         const receivedMessages = parser.parse(chunk);
-        console.log({receivedMessages})
+        console.log({ receivedMessages });
 
         for (let msg of receivedMessages) {
           switch (msg.type) {
             case IStreamMessageType.Token:
-              if (IStreamMessageType.Token in msg) {
+              if ("token" in msg) {
                 aiResponse += msg.token;
                 setStreamedResponse(aiResponse);
               }
               break;
 
             case IStreamMessageType.ToolStart:
-              if (IStreamMessageType.ToolStart in msg) {
-                setCurrentTool({
-                  input: msg.input,
-                  name: msg.tool,
-                });
-                aiResponse += formatTerminalOutput({
-                  toolName: msg.tool,
-                  input: msg.input,
-                  output: "Processing...",
-                });
-                setStreamedResponse(aiResponse);
-              }
+              setCurrentTool({
+                input: msg.input,
+                name: msg.tool,
+              });
+              aiResponse += formatTerminalOutput({
+                toolName: msg.tool,
+                input: msg.input,
+                output: "Processing...",
+              });
+              setStreamedResponse(aiResponse);
               break;
 
             case IStreamMessageType.ToolEnd:
-              if (IStreamMessageType.ToolEnd in msg && currentTool) {
+              if (currentTool) {
                 // replace last processing... message with actual tool o/p
                 const lastTerminalIdx = aiResponse.lastIndexOf(
                   `<div class="big-[#1e1e1e]"`
@@ -161,32 +159,30 @@ function ChatInterface({
               break;
 
             case IStreamMessageType.Done:
-              if (IStreamMessageType.Done in msg) {
-                const aiMessage = {
-                  _id: `temp_assistant_${Date.now()}` as Id<"messages">,
-                  chatId: chatId as string,
+              const aiMessage = {
+                _id: `temp_assistant_${Date.now()}` as Id<"messages">,
+                chatId: chatId as string,
+                content: aiResponse,
+                createdAt: Date.now(),
+                role: "assistant" as const,
+                _creationTime: Date.now(),
+              };
+              setMessages((prev) => [...prev, aiMessage]);
+
+              try {
+                // save in db
+                const convex = await getConvexClient();
+                await convex.mutation(api.messages.storeMessage, {
+                  chatId,
                   content: aiResponse,
+                  role: "assistant",
                   createdAt: Date.now(),
-                  role: "assistant" as const,
-                  _creationTime: Date.now(),
-                };
-                setMessages((prev) => [...prev, aiMessage]);
+                });
 
-                try {
-                  // save in db
-                  const convex = await getConvexClient();
-                  await convex.mutation(api.messages.storeMessage, {
-                    chatId,
-                    content: aiResponse,
-                    role: "assistant",
-                    createdAt: Date.now(),
-                  });
-
-                  setLoading(false);
-                  setStreamedResponse("");
-                } catch (error) {
-                  console.error(error);
-                }
+                setLoading(false);
+                setStreamedResponse("");
+              } catch (error) {
+                console.error(error);
               }
               break;
 
@@ -248,7 +244,7 @@ function ChatInterface({
   };
 
   return (
-    <main className="w-1/2 flex flex-col mx-auto h-[calc(100vh-theme(spacing.20))]">
+    <main className="z-10 w-1/2 flex flex-col mx-auto h-[calc(100vh-theme(spacing.20))]">
       <section className="flex-1">
         {messages.map((message) => (
           <MessageBubble

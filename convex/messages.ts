@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { checkAuth } from "./chats";
 
-const SHOW_COMMENTS = true;
+const SHOW_COMMENTS = false;
 
 export const listMessages = query({
   args: {

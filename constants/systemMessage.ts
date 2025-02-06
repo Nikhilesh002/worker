@@ -16,14 +16,5 @@ When using tools:
   query
   ---END---
 
-Tool-specific instructions:
-1. youtube_transcript:
-   - Query: { transcript(videoUrl: $videoUrl, langCode: $langCode) { title captions { text start dur } } }
-   - Variables: { "videoUrl": "https://www.youtube.com/watch?v=VIDEO_ID", "langCode": "en" }
-
-2. google_books:
-   - For search: { books(q: $q, maxResults: $maxResults) { volumeId title authors } }
-   - Variables: { "q": "search terms", "maxResults": 5 }
-
    refer to previous messages for context and use them to accurately answer the question
 `;

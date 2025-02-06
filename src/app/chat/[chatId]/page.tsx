@@ -14,17 +14,19 @@ async function page({ params }: any) {
     redirect("/");
   }
 
-  console.log(userId);
-
   try {
     const convex = await getConvexClient();
 
     // get initial chat data
-    const initialMessages = await convex.query(api.messages.listMessages, { chatId });
+    const initialMessages = await convex.query(api.messages.listMessages, {
+      chatId,
+    });
 
-    return <div className="text-white pt-16">
-      <ChatInterface chatId={chatId} initialMessages={initialMessages} />
-    </div>;
+    return (
+      <div className="text-white pt-16">
+        <ChatInterface chatId={chatId} initialMessages={initialMessages} />
+      </div>
+    );
   } catch (error) {
     console.error(error);
     redirect("/chat");

@@ -10,7 +10,7 @@ import { tools } from "./tools";
 
 export const initializeModel = async () => {
   const llm = new ChatGoogleGenerativeAI({
-    model: "gemini-1.5-pro",
+    model: "gemini-1.5-flash",
     apiKey: process.env.GOOGLE_API_KEY,
     temperature: 0.1,
     maxRetries: 2,
@@ -19,25 +19,29 @@ export const initializeModel = async () => {
     cache: true,
     callbacks: [
       {
-        handleLLMStart: async () => {
-          console.log("Starting LLM...");
-        },
-        handleLLMEnd(output, runId, parentRunId, tags, extraParams) {
+        // handleLLMStart: async () => {
+        //   console.log("Starting LLM...");
+        // },
+        handleLLMEnd(output) {
           const usage = output.llmOutput?.usage;
           if (usage) {
-            console.log("Token Usage:", {
-              input_tokens: usage.input_tokens,
-              output_tokens: usage.output_tokens,
-              total_tokens: usage.input_tokens + usage.output_tokens,
-              cache_creation_input_tokens:
-                usage.cache_creation_input_tokens || 0,
-              cache_read_input_tokens: usage.cache_read_input_tokens || 0,
-            });
+            // console.log("Token Usage:", {
+            //   input_tokens: usage.input_tokens,
+            //   output_tokens: usage.output_tokens,
+            //   total_tokens: usage.input_tokens + usage.output_tokens,
+            //   cache_creation_input_tokens:
+            //     usage.cache_creation_input_tokens || 0,
+            //   cache_read_input_tokens: usage.cache_read_input_tokens || 0,
+            // });
+            console.log(
+              "Token Usage:",
+              usage.input_tokens + usage.output_tokens
+            );
           }
         },
-        handleLLMNewToken: async (token) => {
-          console.log("New token:", token);
-        },
+        // handleLLMNewToken: async (token) => {
+        //   console.log("New token:", token);
+        // },
       },
     ],
   }).bindTools(tools);
