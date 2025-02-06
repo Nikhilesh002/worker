@@ -29,7 +29,7 @@ function MessageBubble({
             : "bg-gray-800 w-full text-white rounded-bl-none ring-gray-600"
         }`}
       >
-        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+        <div className="whitespace-pre-wrap text-wrap text-sm leading-relaxed">
           <div
             dangerouslySetInnerHTML={{ __html: formatMessage(content) }}
           ></div>

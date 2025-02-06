@@ -23,6 +23,9 @@ importers:
       '@langchain/langgraph':
         specifier: ^0.2.41
         version: 0.2.41(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))
+      '@langchain/ollama':
+        specifier: ^0.1.5
+        version: 0.1.5(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))
       '@radix-ui/react-alert-dialog':
         specifier: ^1.1.6
         version: 1.1.6(@types/react-dom@19.0.3(@types/react@19.0.8))(@types/react@19.0.8)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -49,7 +52,7 @@ importers:
         version: 1.18.2(@clerk/clerk-react@5.22.5(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       langchain:
         specifier: ^0.3.13
-        version: 0.3.13(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))(@langchain/google-genai@0.1.6(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))(zod@3.24.1))(openai@4.80.1(zod@3.24.1))
+        version: 0.3.13(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))(@langchain/google-genai@0.1.6(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))(zod@3.24.1))(@langchain/ollama@0.1.5(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1))))(openai@4.80.1(zod@3.24.1))
       lucide-react:
         specifier: ^0.473.0
         version: 0.473.0(react@19.0.0)
@@ -523,6 +526,12 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@langchain/core': '>=0.2.36 <0.3.0 || >=0.3.9 < 0.4.0'
+
+  '@langchain/ollama@0.1.5':
+    resolution: {integrity: sha512-S2tF94uIJtXavekKg10LvTV+jIelOIrubaCnje8BopfiNOVcnzsSulUL4JH0wvdxMZq0vbE4/i9RwC2q9ivOmA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@langchain/core': '>=0.2.21 <0.4.0'
 
   '@langchain/openai@0.4.2':
     resolution: {integrity: sha512-Cuj7qbVcycALTP0aqZuPpEc7As8cwiGaU21MhXRyZFs+dnWxKYxZ1Q1z4kcx6cYkq/I+CNwwmk+sP+YruU73Aw==}
@@ -2166,6 +2175,9 @@ packages:
     resolution: {integrity: sha512-gXah6aZrcUxjWg2zR2MwouP2eHlCBzdV4pygudehaKXSGW4v2AsRQUK+lwwXhii6KFZcunEnmSUoYp5CXibxtA==}
     engines: {node: '>= 0.4'}
 
+  ollama@0.5.12:
+    resolution: {integrity: sha512-flVH1fn1c9NF7VV3bW9kSu0E+bYc40b4DxL/gS2Debhao35osJFRDiPOj9sIWTMvcyj78Paw1OuhfIe7uhDWfQ==}
+
   openai@4.80.1:
     resolution: {integrity: sha512-+6+bbXFwbIE88foZsBEt36bPkgZPdyFN82clAXG61gnHb2gXdZApDyRrcAHqEtpYICywpqaNo57kOm9dtnb7Cw==}
     hasBin: true
@@ -2712,6 +2724,9 @@ packages:
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
 
+  whatwg-fetch@3.6.20:
+    resolution: {integrity: sha512-EqhiFU6daOA8kpjOWTL0olhVOF3i7OrFzSYiGsEMB8GcXS+RrzauAERX65xMeNWVqxA6HXH2m69Z9LaKKdisfg==}
+
   whatwg-url@5.0.0:
     resolution: {integrity: sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==}
 
@@ -3119,6 +3134,12 @@ snapshots:
       '@langchain/langgraph-sdk': 0.0.36
       uuid: 10.0.0
       zod: 3.24.1
+
+  '@langchain/ollama@0.1.5(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))':
+    dependencies:
+      '@langchain/core': 0.3.36(openai@4.80.1(zod@3.24.1))
+      ollama: 0.5.12
+      uuid: 10.0.0
 
   '@langchain/openai@0.4.2(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))':
     dependencies:
@@ -4685,7 +4706,7 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
-  langchain@0.3.13(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))(@langchain/google-genai@0.1.6(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))(zod@3.24.1))(openai@4.80.1(zod@3.24.1)):
+  langchain@0.3.13(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))(@langchain/google-genai@0.1.6(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))(zod@3.24.1))(@langchain/ollama@0.1.5(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1))))(openai@4.80.1(zod@3.24.1)):
     dependencies:
       '@langchain/core': 0.3.36(openai@4.80.1(zod@3.24.1))
       '@langchain/openai': 0.4.2(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))
@@ -4702,6 +4723,7 @@ snapshots:
       zod-to-json-schema: 3.24.1(zod@3.24.1)
     optionalDependencies:
       '@langchain/google-genai': 0.1.6(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))(zod@3.24.1)
+      '@langchain/ollama': 0.1.5(@langchain/core@0.3.36(openai@4.80.1(zod@3.24.1)))
     transitivePeerDependencies:
       - encoding
       - openai
@@ -4884,6 +4906,10 @@ snapshots:
       call-bound: 1.0.3
       define-properties: 1.2.1
       es-object-atoms: 1.1.1
+
+  ollama@0.5.12:
+    dependencies:
+      whatwg-fetch: 3.6.20
 
   openai@4.80.1(zod@3.24.1):
     dependencies:
@@ -5501,6 +5527,8 @@ snapshots:
   web-streams-polyfill@4.0.0-beta.3: {}
 
   webidl-conversions@3.0.1: {}
+
+  whatwg-fetch@3.6.20: {}
 
   whatwg-url@5.0.0:
     dependencies:

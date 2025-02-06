@@ -65,7 +65,7 @@ function RecentChats({
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                           This action cannot be undone. This will permanently
-                          delete your account and remove your data from our
+                          delete the chat and remove all of its data from our
                           servers.
                         </AlertDialogDescription>
                       </AlertDialogHeader>

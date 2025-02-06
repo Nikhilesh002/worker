@@ -5,15 +5,15 @@ import { SSE_DATA_PREFIX } from "./../../constants/constants";
 export const createSSEParser = () => {
   let buffer = "";
 
-  const parse = (chunk: string): IStreamMessage[] => {
+  const parse = (chunk: string): string[] => {
     // Append chunk to buffer and split into lines
     const lines = (buffer + chunk).split("\n\n");
 
     // Keep the last incomplete line in the buffer
     buffer = lines.pop() || "";
 
-    const extractedMessages: IStreamMessage[] = [];
-
+    // const extractedMessages: IStreamMessage[] = [];
+    const arr = []
     for (let line of lines) {
       // Remove extra backslashes added before quotes
       line = line.replace(/\\(?=["'])/g, "");
@@ -31,21 +31,24 @@ export const createSSEParser = () => {
 
       try {
         // Parse the JSON message correctly
-        const parsed = JSON.parse(msg);
+        // const parsed = JSON.parse(msg);
 
         // Validate the message type
-        if (Object.values(IStreamMessageType).includes(parsed.type)) {
-          extractedMessages.push(parsed);
-        } else throw new Error();
+        // if (Object.values(IStreamMessageType).includes(parsed.type)) {
+        //   extractedMessages.push(parsed);
+        // } else throw new Error();
+        arr.push(msg)
       } catch (error) {
-        extractedMessages.push({
-          type: IStreamMessageType.Error,
-          error: error instanceof Error ? error.message : "Error parsing SSE",
-        });
+        // extractedMessages.push({
+        //   type: IStreamMessageType.Error,
+        //   error: error instanceof Error ? error.message : "Error parsing SSE",
+        // });
+        console.log(error)
       }
     }
 
-    return extractedMessages;
+    // return extractedMessages;
+    return arr
   };
 
   return { parse };

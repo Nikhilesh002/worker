@@ -114,82 +114,114 @@ function ChatInterface({
         const receivedMessages = parser.parse(chunk);
         console.log({ receivedMessages });
 
-        for (const msg of receivedMessages) {
-          switch (msg.type) {
-            case IStreamMessageType.Token:
-              if ("token" in msg) {
-                aiResponse += msg.token;
-                setStreamedResponse(aiResponse);
-              }
-              break;
+        // for (const msg of receivedMessages) {
+        //   switch (msg.type) {
+        //     case IStreamMessageType.Token:
+        //       if ("token" in msg) {
+        //         aiResponse += msg.token;
+        //         setStreamedResponse(aiResponse);
+        //       }
+        //       break;
 
-            case IStreamMessageType.ToolStart:
-              setCurrentTool({
-                input: msg.input,
-                name: msg.tool,
-              });
-              aiResponse += formatTerminalOutput({
-                toolName: msg.tool,
-                input: msg.input,
-                output: "Processing...",
-              });
-              setStreamedResponse(aiResponse);
-              break;
+        //     case IStreamMessageType.ToolStart:
+        //       setCurrentTool({
+        //         input: msg.input,
+        //         name: msg.tool,
+        //       });
+        //       aiResponse += formatTerminalOutput({
+        //         toolName: msg.tool,
+        //         input: msg.input,
+        //         output: "Processing...",
+        //       });
+        //       setStreamedResponse(aiResponse);
+        //       break;
 
-            case IStreamMessageType.ToolEnd:
-              if (currentTool) {
-                // replace last processing... message with actual tool o/p
-                const lastTerminalIdx = aiResponse.lastIndexOf(
-                  `<div class="big-[#1e1e1e]"`
-                );
+        //     case IStreamMessageType.ToolEnd:
+        //       if (currentTool) {
+        //         // replace last processing... message with actual tool o/p
+        //         const lastTerminalIdx = aiResponse.lastIndexOf(
+        //           `<div class="big-[#1e1e1e]"`
+        //         );
 
-                if (lastTerminalIdx !== -1) {
-                  aiResponse =
-                    aiResponse.slice(0, lastTerminalIdx) +
-                    formatTerminalOutput({
-                      toolName: msg.tool,
-                      input: currentTool.input,
-                      output: msg.output,
-                    });
-                  setStreamedResponse(aiResponse);
-                }
-                setCurrentTool(null);
-              }
-              break;
+        //         if (lastTerminalIdx !== -1) {
+        //           aiResponse =
+        //             aiResponse.slice(0, lastTerminalIdx) +
+        //             formatTerminalOutput({
+        //               toolName: msg.tool,
+        //               input: currentTool.input,
+        //               output: msg.output,
+        //             });
+        //           setStreamedResponse(aiResponse);
+        //         }
+        //         setCurrentTool(null);
+        //       }
+        //       break;
 
-            case IStreamMessageType.Done:
-              const aiMessage = {
-                _id: `temp_assistant_${Date.now()}` as Id<"messages">,
-                chatId: chatId as string,
+        //     case IStreamMessageType.Done:
+        //       const aiMessage = {
+        //         _id: `temp_assistant_${Date.now()}` as Id<"messages">,
+        //         chatId: chatId as string,
+        //         content: aiResponse,
+        //         createdAt: Date.now(),
+        //         role: "assistant" as const,
+        //         _creationTime: Date.now(),
+        //       };
+        //       setMessages((prev) => [...prev, aiMessage]);
+
+        //       try {
+        //         // save in db
+        //         const convex = await getConvexClient();
+        //         await convex.mutation(api.messages.storeMessage, {
+        //           chatId,
+        //           content: aiResponse,
+        //           role: "assistant",
+        //           createdAt: Date.now(),
+        //         });
+
+        //         setLoading(false);
+        //         setStreamedResponse("");
+        //       } catch (error) {
+        //         console.error(error);
+        //       }
+        //       break;
+
+        //     case IStreamMessageType.Error:
+        //       if (IStreamMessageType.Error in msg) {
+        //         throw new Error();
+        //       }
+        //       break;
+        //   }
+        // }
+        
+        for(const msg of receivedMessages){
+          aiResponse += msg;
+          setStreamedResponse(aiResponse);
+          if(aiResponse.includes("[DONE]")){
+            const aiMessage = {
+              _id: `temp_assistant_${Date.now()}` as Id<"messages">,
+              chatId: chatId as string,
+              content: aiResponse,
+              createdAt: Date.now(),
+              role: "assistant" as const,
+              _creationTime: Date.now(),
+            }
+            setMessages((prev) => [...prev, aiMessage]);
+
+            try {
+              // save in db
+              const convex = await getConvexClient();
+              await convex.mutation(api.messages.storeMessage, {
+                chatId,
                 content: aiResponse,
+                role: "assistant",
                 createdAt: Date.now(),
-                role: "assistant" as const,
-                _creationTime: Date.now(),
-              };
-              setMessages((prev) => [...prev, aiMessage]);
-
-              try {
-                // save in db
-                const convex = await getConvexClient();
-                await convex.mutation(api.messages.storeMessage, {
-                  chatId,
-                  content: aiResponse,
-                  role: "assistant",
-                  createdAt: Date.now(),
-                });
-
-                setLoading(false);
-                setStreamedResponse("");
-              } catch (error) {
-                console.error(error);
-              }
-              break;
-
-            case IStreamMessageType.Error:
-              if (IStreamMessageType.Error in msg) {
-                throw new Error();
-              }
-              break;
+              });
+            }
+            catch (error) {
+              console.log(error)
+            }
+            setStreamedResponse("")
+            aiResponse=""
           }
         }
       });
