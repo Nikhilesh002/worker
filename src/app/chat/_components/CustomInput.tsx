@@ -15,12 +15,6 @@ function CustomInput({
   setMessages: React.Dispatch<React.SetStateAction<Doc<"messages">[]>>;
 }) {
   const [inputValue, setInputValue] = useState("");
-  // console.log({
-  //   chatId,
-  //   messages,
-  //   setMessages
-  // })
-
 
   return (
     <div className="w-full">

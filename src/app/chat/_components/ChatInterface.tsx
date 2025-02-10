@@ -112,7 +112,7 @@ function ChatInterface({
       //
       await processStream(reader, async (chunk) => {
         const receivedMessages = parser.parse(chunk);
-        console.log({ receivedMessages });
+        // console.log({ receivedMessages, currentTool });
 
         for (const msg of receivedMessages) {
           switch (msg.type) {
@@ -139,20 +139,24 @@ function ChatInterface({
             case IStreamMessageType.ToolEnd:
               if (currentTool) {
                 // replace last processing... message with actual tool o/p
-                const lastTerminalIdx = aiResponse.lastIndexOf(
-                  `<div class="big-[#1e1e1e]"`
-                );
+                const lastTerminalIdx = aiResponse.lastIndexOf(`---START---`);
 
                 if (lastTerminalIdx !== -1) {
                   aiResponse =
                     aiResponse.slice(0, lastTerminalIdx) +
                     formatTerminalOutput({
-                      toolName: msg.tool,
+                      toolName: currentTool.name,
                       input: currentTool.input,
                       output: msg.output,
                     });
-                  setStreamedResponse(aiResponse);
+                } else {
+                  aiResponse = aiResponse.replace(
+                    "Processing...",
+                    JSON.stringify(msg.output, null, 2)
+                  );
                 }
+
+                setStreamedResponse(aiResponse);
                 setCurrentTool(null);
               }
               break;
@@ -242,27 +246,27 @@ function ChatInterface({
   };
 
   return (
-    <main className="z-10 w-1/2 flex flex-col mx-auto h-[calc(100vh-theme(spacing.20))]">
-      <section className="flex-1">
-        {messages.map((message) => (
-          <MessageBubble
-            key={message._id}
-            content={message.content}
-            isUser={message.role === "user"}
-          />
-        ))}
+    <main className="z-10 flex flex-col justify-center items-center mx-auto h-[calc(100vh-theme(spacing.20))]">
+      <section className="w-full flex flex-col items-center overflow-y-auto no-scrollbar rounded-b-lg">
+        <div className="w-1/2">
+          {messages.map((message) => (
+            <MessageBubble
+              key={message._id}
+              content={message.content}
+              isUser={message.role === "user"}
+            />
+          ))}
 
-        {streamedResponse && (
-          <MessageBubble content={streamedResponse} isUser={false} />
-        )}
+          {streamedResponse && (
+            <MessageBubble content={streamedResponse} isUser={false} />
+          )}
 
-        {loading && <div className="animate-pulse">loading...</div>}
-        <div ref={messageEndRef} />
+          {loading && <div className="animate-pulse">loading...</div>}
+        </div>
+        <div ref={messageEndRef}></div>
       </section>
 
-      <div></div>
-
-      <div className="w-full border-l-2 border-r-[5px] border-b-[5px] border-t-[2px] border-orange-200 rounded-lg px-[10px]">
+      <div className="w-1/2 mt-2 border-l-2 border-r-[5px] border-b-[5px] border-t-[2px] border-orange-200 rounded-lg px-[10px]">
         <Textarea
           onKeyDown={(e) => keyDownHandler(e, handleSubmit)}
           value={inputValue}

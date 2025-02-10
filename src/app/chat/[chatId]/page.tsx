@@ -25,7 +25,7 @@ async function page({ params }: { params: Promise<{ chatId: string }>}) {
     });
 
     return (
-      <div className="text-white pt-16">
+      <div className="text-white ">
         <ChatInterface chatId={chatId as Id<"chats">} initialMessages={initialMessages} />
       </div>
     );

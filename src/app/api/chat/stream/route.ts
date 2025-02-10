@@ -24,7 +24,7 @@ const sendSSEMessage = async (
   const payload = `${SSE_DATA_PREFIX}${JSON.stringify(
     message
   )}${SSE_DATA_DELIMITER}`;
-  console.log({ payload });
+  // console.log({ payload });
   return writer.write(encoder.encode(payload));
 };
 
@@ -92,18 +92,19 @@ export async function POST(req: Request) {
 
           // we r now getting stream of chunks from langgraph
           for await (const event of eventStream) {
-            console.log({ event: JSON.stringify(event) });
+            // console.log({ event: JSON.stringify(event) });
             if (event.event === "on_chat_model_stream") {
               const token = event.data.chunk;
 
               if (token) {
                 let textContent: string = token.content;
                 if (textContent.includes("```json")) {
-                  textContent = textContent
-                    .replace("```json", "")
-                    .replace("```", "")
-                    .replace('\n', "")
-                    .replace('\\"', '"')
+                  // textContent = textContent
+                  //   .replace("```json", "")
+                  //   .replace("```", "")
+                  //   .replace('\n', "")
+                  //   .replace('\\"', '"')
+                  //   .replace("\\n","")
                 }
                 if (textContent) {
                   await sendSSEMessage(writer, {
@@ -117,7 +118,7 @@ export async function POST(req: Request) {
               await sendSSEMessage(writer, {
                 type: IStreamMessageType.ToolStart,
                 tool: event.name || "unknown",
-                input: event.data.input,
+                input: JSON.parse(event.data.input.input),
               });
             } else if (event.event === "on_tool_end") {
               // console.log("tool end",{event})
@@ -126,7 +127,7 @@ export async function POST(req: Request) {
               await sendSSEMessage(writer, {
                 type: IStreamMessageType.ToolEnd,
                 tool: toolMessage.lc_kwargs.name || "unknown",
-                output: event.data.output,
+                output: event.data.output[0],
               });
             }
           }
