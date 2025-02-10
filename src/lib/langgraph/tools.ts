@@ -1,14 +1,14 @@
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import wxflows from "@wxflows/sdk/langchain";
+// import wxflows from "@wxflows/sdk/langchain";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 
 // connect to wxflows
-const toolClient = new wxflows({
-  endpoint: process.env.WXFLOWS_ENDPOINT || "",
-  apikey: process.env.WXFLOWS_APIKEY || "",
-  flowName: "workerAI",
-});
+// const toolClient = new wxflows({
+//   endpoint: process.env.WXFLOWS_ENDPOINT || "",
+//   apikey: process.env.WXFLOWS_APIKEY || "",
+//   flowName: "workerAI",
+// });
 
 const getAllCustomers = tool(
   async () => {

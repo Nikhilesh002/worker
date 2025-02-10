@@ -1,7 +1,8 @@
+"use client"
+
 import React from "react";
 import CustomInput from "./CustomInput";
 import { functionalities } from "../../../../constants/constants";
-import { Id } from "../../../../convex/_generated/dataModel";
 
 function InitialChatInterface() {
   return (
@@ -12,11 +13,7 @@ function InitialChatInterface() {
             What can I help with?
           </h1>
 
-          <CustomInput
-            messages={[]}
-            setMessages={() => {}}
-            chatId={"" as Id<"chats">}
-          />
+          <CustomInput />
 
           <div className="flex space-x-5 text-[12px] justify-center">
             {functionalities.map((fun, i) => (

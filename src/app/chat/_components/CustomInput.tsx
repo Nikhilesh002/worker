@@ -2,19 +2,25 @@
 
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowUp } from "lucide-react";
-import React, { useState } from "react";
-import { Doc, Id } from "../../../../convex/_generated/dataModel";
+import React, { use, useState } from "react";
+import { useRouter } from "next/navigation";
+import { NavigationContext } from "@/components/NavigationContext/NavigationContextProvider";
+import { useMutation } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 
-function CustomInput({
-  chatId,
-  messages,
-  setMessages,
-}: {
-  chatId: Id<"chats">;
-  messages: Doc<"messages">[];
-  setMessages: React.Dispatch<React.SetStateAction<Doc<"messages">[]>>;
-}) {
+function CustomInput() {
   const [inputValue, setInputValue] = useState("");
+
+  const router = useRouter();
+  const { isMobileNavOpen, closeMobileNav } = use(NavigationContext);
+
+  const createChat = useMutation(api.chats.createChat);
+
+  const handleNewChatClick = async () => {
+    const newChatId = await createChat({ title: "New Chat" });
+    router.push(`/chat/${newChatId}`);
+    closeMobileNav();
+  };
 
   return (
     <div className="w-full">
@@ -30,9 +36,9 @@ function CustomInput({
           className="font-serif border border-gray-600"
         />
         <div className="flex justify-between items-center py-2">
-          <p className="text-xs text-gray-400">Powered by LLM</p>
+          <p className="text-xs text-gray-400">Powered by Gemini</p>
           <button
-            // onClick={handleSubmit}
+            onClick={handleNewChatClick}
             disabled={!inputValue.trim()}
             className={`rounded-full ${
               inputValue.trim()

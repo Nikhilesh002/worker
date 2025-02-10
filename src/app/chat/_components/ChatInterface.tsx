@@ -11,6 +11,7 @@ import { getConvexClient } from "../../../../convex/convex";
 import { api } from "../../../../convex/_generated/api";
 import { formatTerminalOutput } from "./lib/formatTerminalOutput";
 import MessageBubble from "./MessageBubble";
+import { functionalities } from "../../../../constants/constants";
 
 function ChatInterface({
   chatId,
@@ -292,6 +293,15 @@ function ChatInterface({
           </button>
         </div>
       </div>
+        {
+          messages.length===0 && streamedResponse==="" && <div className="mt-3 flex space-x-5 text-[12px] justify-center">
+          {functionalities.map((fun, i) => (
+            <div key={i} className={`border border-${fun.color} rounded`}>
+              <p className={`text-${fun.color} px-1 py-0.5`}>{fun.name}</p>
+            </div>
+          ))}
+        </div>
+        }
     </main>
   );
 }

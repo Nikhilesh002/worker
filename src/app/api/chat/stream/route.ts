@@ -97,7 +97,7 @@ export async function POST(req: Request) {
               const token = event.data.chunk;
 
               if (token) {
-                let textContent: string = token.content;
+                const textContent: string = token.content;
                 if (textContent.includes("```json")) {
                   // textContent = textContent
                   //   .replace("```json", "")
