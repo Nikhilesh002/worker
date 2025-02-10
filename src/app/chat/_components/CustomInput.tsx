@@ -12,7 +12,7 @@ function CustomInput() {
   const [inputValue, setInputValue] = useState("");
 
   const router = useRouter();
-  const { isMobileNavOpen, closeMobileNav } = use(NavigationContext);
+  const { closeMobileNav } = use(NavigationContext);
 
   const createChat = useMutation(api.chats.createChat);
 
