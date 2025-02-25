@@ -50,7 +50,7 @@ function ChatInterface({
 
     if (trimmedInput === "" || loading) return;
 
-    // setInputValue("");
+    setInputValue("");
     setStreamedResponse("");
     setCurrentTool(null);
     setLoading(true);
@@ -139,6 +139,7 @@ function ChatInterface({
 
             case IStreamMessageType.ToolEnd:
               if (currentTool) {
+                // console.log({aiResponse, currentTool, msg});
                 // replace last processing... message with actual tool o/p
                 const lastTerminalIdx = aiResponse.lastIndexOf(`---START---`);
 
@@ -156,6 +157,7 @@ function ChatInterface({
                     JSON.stringify(msg.output, null, 2)
                   );
                 }
+                // console.log({aiResponse, currentTool, msg});
 
                 setStreamedResponse(aiResponse);
                 setCurrentTool(null);
@@ -230,17 +232,17 @@ function ChatInterface({
       ]);
 
       // remove optimistically added msg
-      // setMessages((prev) =>
-      //   prev.filter((msg) => msg._id !== optimisticUserMessage._id)
-      // );
+      setMessages((prev) =>
+        prev.filter((msg) => msg._id !== optimisticUserMessage._id)
+      );
 
-      // setStreamedResponse(
-      //   formatTerminalOutput({
-      //     toolName: "Error",
-      //     input: "Failed to process request",
-      //     output: error instanceof Error ? error.message : "Unknown error",
-      //   })
-      // );
+      setStreamedResponse(
+        formatTerminalOutput({
+          toolName: "Error",
+          input: "Failed to process request",
+          output: error instanceof Error ? error.message : "Unknown error",
+        })
+      );
     } finally {
       setLoading(false);
     }
