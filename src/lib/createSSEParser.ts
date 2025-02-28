@@ -19,7 +19,7 @@ export const createSSEParser = () => {
       line = line.replace(/\\(?=["'])/g, "");
 
       const trimmedLine = line.trim();
-      // console.log({ trimmedLine });
+      console.log({ trimmedLine });
 
       // Skip empty or invalid lines
       if (!trimmedLine || !trimmedLine.startsWith(SSE_DATA_PREFIX)) continue;
@@ -27,7 +27,7 @@ export const createSSEParser = () => {
       // Extract the actual message content
       const msg = trimmedLine.slice(SSE_DATA_PREFIX.length, trimmedLine.length);
 
-      // console.log({ msg });
+      console.log({ msg });
 
       try {
         // Parse the JSON message correctly

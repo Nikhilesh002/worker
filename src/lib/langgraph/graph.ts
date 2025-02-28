@@ -9,6 +9,7 @@ import { AIMessage, BaseMessage } from "@langchain/core/messages";
 import { optimiseMessages } from "./optimiseMessages";
 import { call_llm } from "./llm";
 import { toolNode } from "../tools/toolNode";
+import { logger } from "../../../logger";
 
 const what_next = (state: typeof MessagesAnnotation.State): string => {
   const messages = state.messages;
@@ -64,6 +65,6 @@ export const submitQuestion = async (
       runId: chatId,
     }
   );
-
+  logger.info({stream})
   return stream;
 };

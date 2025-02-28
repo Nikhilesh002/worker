@@ -44,7 +44,7 @@ function Sidebar() {
               <Button variant={"ghost"} onClick={closeMobileNav}>
                 <Menu />
               </Button>
-            <h1 className="text-rose-400 text-2xl font-bold font-serif">
+            <h1 className="text-gray-300 text-2xl font-bold font-serif">
               Your Chats
             </h1>
             </div>

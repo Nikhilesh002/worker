@@ -92,20 +92,12 @@ export async function POST(req: Request) {
 
           // we r now getting stream of chunks from langgraph
           for await (const event of eventStream) {
-            // console.log({ event: JSON.stringify(event) });
+            console.log({ event: JSON.stringify(event) });
             if (event.event === "on_chat_model_stream") {
               const token = event.data.chunk;
 
               if (token) {
                 const textContent: string = token.content;
-                if (textContent.includes("```json")) {
-                  // textContent = textContent
-                  //   .replace("```json", "")
-                  //   .replace("```", "")
-                  //   .replace('\n', "")
-                  //   .replace('\\"', '"')
-                  //   .replace("\\n","")
-                }
                 if (textContent) {
                   await sendSSEMessage(writer, {
                     type: IStreamMessageType.Token,

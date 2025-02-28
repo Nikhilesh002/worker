@@ -1,4 +1,3 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { SYSTEM_MESSAGE } from "../../../constants/systemMessage";
 import {
   ChatPromptTemplate,
@@ -7,48 +6,30 @@ import {
 import { MessagesAnnotation } from "@langchain/langgraph";
 import { SystemMessage, trimMessages } from "@langchain/core/messages";
 import { tools } from "../tools/toolNode";
+import { ChatGroq } from "@langchain/groq";
+import { ChatOllama } from "@langchain/ollama";
 
 export const initializeModel = async () => {
-  const llm = new ChatGoogleGenerativeAI({
-    model: "gemini-1.5-pro",
-    apiKey: process.env.GOOGLE_API_KEY,
-    temperature: 0.1,
-    maxRetries: 2,
-    maxOutputTokens: 4096,
-    streaming: true, // so it return AIMessageChunk instead of AIMesssage
-    cache: true,
-    callbacks: [
-      {
-        // handleLLMStart: async () => {
-        //   console.log("Starting LLM...");
-        // },
-        handleLLMEnd(output) {
-          const usage = output.llmOutput?.usage;
-          if (usage) {
-            // console.log("Token Usage:", {
-            //   input_tokens: usage.input_tokens,
-            //   output_tokens: usage.output_tokens,
-            //   total_tokens: usage.input_tokens + usage.output_tokens,
-            //   cache_creation_input_tokens:
-            //     usage.cache_creation_input_tokens || 0,
-            //   cache_read_input_tokens: usage.cache_read_input_tokens || 0,
-            // });
-            console.log(
-              "Token Usage:",
-              usage.input_tokens + usage.output_tokens
-            );
-          }
-        },
-        // handleLLMNewToken: async (token) => {
-        //   console.log("New token:", token);
-        // },
-      },
-    ],
-  }).bindTools(tools);
-
-  // console.log({tools})
-
-  return llm;
+  if (process.env.ENV === "dev") {
+    return new ChatOllama({
+      model: "llama3.2:3b",
+      temperature: 0.1,
+      maxRetries: 2,
+      streaming: true, // so it return AIMessageChunk instead of AIMesssage
+      cache: true,
+      // verbose: true,
+    }).bindTools(tools);
+  } else {
+    return new ChatGroq({
+      model: "gemma2-9b-it",
+      apiKey: process.env.AI_API_KEY,
+      temperature: 0.1,
+      maxRetries: 2,
+      maxTokens: 2048,
+      streaming: true,
+      cache: true,
+    }).bindTools(tools);
+  }
 };
 
 // trim messages
@@ -79,7 +60,7 @@ export const call_llm = async (state: typeof MessagesAnnotation.State) => {
   const prompt = await promptTemplate.invoke({ messages: trimmedMessages });
 
   // call LLM
-  const resp = await llm.invoke(prompt);
+  const resp = await llm.invoke(prompt, { recursionLimit: 20 });
 
   // return response
   return { messages: [resp] };

@@ -6,10 +6,11 @@ import React from "react";
 import Header from "./_components/Header";
 
 function Page() {
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <Header/>
+      <Header />
 
       {/* Main Content */}
       <div>

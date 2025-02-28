@@ -269,7 +269,7 @@ function ChatInterface({
         <div ref={messageEndRef}></div>
       </section>
 
-      <div className="w-1/2 mt-2 border-l-2 border-r-[5px] border-b-[5px] border-t-[2px] border-orange-200 rounded-lg px-[10px]">
+      <div className="w-1/2 mt-2 border-l-2 border-r-[5px] border-b-[5px] border-t-[2px] border-gray-400 rounded-lg px-[10px]">
         <Textarea
           onKeyDown={(e) => keyDownHandler(e, handleSubmit)}
           value={inputValue}
