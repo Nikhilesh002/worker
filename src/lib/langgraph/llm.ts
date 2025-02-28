@@ -6,7 +6,7 @@ import {
 } from "@langchain/core/prompts";
 import { MessagesAnnotation } from "@langchain/langgraph";
 import { SystemMessage, trimMessages } from "@langchain/core/messages";
-import { tools } from "./tools";
+import { tools } from "../tools/toolNode";
 
 export const initializeModel = async () => {
   const llm = new ChatGoogleGenerativeAI({

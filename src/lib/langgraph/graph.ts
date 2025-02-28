@@ -8,7 +8,7 @@ import {
 import { AIMessage, BaseMessage } from "@langchain/core/messages";
 import { optimiseMessages } from "./optimiseMessages";
 import { call_llm } from "./llm";
-import { toolNode } from "./tools";
+import { toolNode } from "../tools/toolNode";
 
 const what_next = (state: typeof MessagesAnnotation.State): string => {
   const messages = state.messages;
