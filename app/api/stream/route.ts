@@ -1,14 +1,14 @@
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { streamAgent } from "@/lib/agent/graph"
-import {
-  HumanMessage,
-  AIMessage,
-  SystemMessage,
-} from "@langchain/core/messages"
+import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages"
 import { SYSTEM_PROMPT } from "@/lib/agent/systemPrompt"
+import { summarizeMessages } from "@/lib/agent/summarize"
 
 export const maxDuration = 60
+
+// Summarize when unsummarized messages exceed this count
+const SUMMARIZE_THRESHOLD = 10
 
 export async function POST(req: Request) {
   const { userId } = await auth()
@@ -40,7 +40,12 @@ export async function POST(req: Request) {
     },
   })
 
-  // Get chat history for context
+  // Load chat with summary + full history
+  const chat = await prisma.chat.findUnique({
+    where: { id: currentChatId },
+    select: { summary: true, summarizedUpToIndex: true },
+  })
+
   const history = await prisma.message.findMany({
     where: { chatId: currentChatId },
     orderBy: { createdAt: "asc" },
@@ -79,7 +84,10 @@ export async function POST(req: Request) {
         const storedParts: string[] = []
         let currentText = ""
 
-        for await (const event of streamAgent(langchainMessages)) {
+        for await (const event of streamAgent(
+          langchainMessages,
+          chat?.summary || undefined,
+        )) {
           switch (event.type) {
             case "token":
               currentText += event.content
@@ -120,6 +128,18 @@ export async function POST(req: Request) {
           })
         }
 
+        // Trigger async summarization if needed
+        const summarizedUpTo = chat?.summarizedUpToIndex ?? 0
+        const unsummarizedCount = history.length + 1 - summarizedUpTo // +1 for the assistant reply we just stored
+        if (unsummarizedCount > SUMMARIZE_THRESHOLD) {
+          triggerSummarization(
+            currentChatId,
+            chat?.summary || null,
+            history.map((m) => ({ role: m.role, content: m.content })),
+            summarizedUpTo,
+          )
+        }
+
         send({ type: "done" })
       } catch (error) {
         console.error("Stream error:", error)
@@ -141,4 +161,32 @@ export async function POST(req: Request) {
       Connection: "keep-alive",
     },
   })
+}
+
+/**
+ * Fire-and-forget summarization.
+ * Summarizes messages from summarizedUpTo onward (excluding the most recent ones
+ * which will be sent as raw messages next time).
+ */
+function triggerSummarization(
+  chatId: string,
+  existingSummary: string | null,
+  allMessages: { role: string; content: string }[],
+  summarizedUpTo: number,
+) {
+  // Summarize everything except the last few messages (those stay as raw context)
+  const keepRaw = 6
+  const endIndex = Math.max(summarizedUpTo, allMessages.length - keepRaw)
+  const toSummarize = allMessages.slice(summarizedUpTo, endIndex)
+
+  if (toSummarize.length < 4) return // Not enough new messages to bother
+
+  summarizeMessages(existingSummary, toSummarize)
+    .then((summary) =>
+      prisma.chat.update({
+        where: { id: chatId },
+        data: { summary, summarizedUpToIndex: endIndex },
+      }),
+    )
+    .catch((err) => console.error("Summarization failed:", err))
 }

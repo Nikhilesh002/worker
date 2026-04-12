@@ -1,4 +1,5 @@
 import {
+  Annotation,
   StateGraph,
   MessagesAnnotation,
   END,
@@ -14,20 +15,36 @@ import { SYSTEM_PROMPT } from "./systemPrompt"
 const toolNode = new ToolNode(allTools)
 const toolNames = allTools.map((t) => t.name)
 
-async function callAgent(state: typeof MessagesAnnotation.State) {
-  const messages = state.messages
+// Extend state to carry conversation summary
+const AgentState = Annotation.Root({
+  ...MessagesAnnotation.spec,
+  summary: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
+})
+
+const RECENT_MESSAGES_COUNT = 10
+
+async function callAgent(state: typeof AgentState.State) {
+  const { messages, summary } = state
+
+  // Build system prompt with summary context
+  let systemContent = SYSTEM_PROMPT
+  if (summary) {
+    systemContent += `\n\n## Conversation Summary (older context)\n${summary}`
+  }
+
   const hasSystemMessage =
     messages.length > 0 && messages[0] instanceof SystemMessage
 
-  const allMessages = hasSystemMessage
-    ? messages
-    : [new SystemMessage(SYSTEM_PROMPT), ...messages]
+  // Strip any existing system message — we build our own with summary
+  const userMessages = hasSystemMessage ? messages.slice(1) : messages
 
-  // Keep system message + last 20 messages to manage context
-  const trimmedMessages =
-    allMessages.length > 21
-      ? [allMessages[0], ...allMessages.slice(-20)]
-      : allMessages
+  // Keep only recent messages — older context lives in the summary
+  const recentMessages =
+    userMessages.length > RECENT_MESSAGES_COUNT
+      ? userMessages.slice(-RECENT_MESSAGES_COUNT)
+      : userMessages
+
+  const trimmedMessages = [new SystemMessage(systemContent), ...recentMessages]
 
   const response = await retry(
     () => getModel().bindTools(allTools).invoke(trimmedMessages),
@@ -37,7 +54,7 @@ async function callAgent(state: typeof MessagesAnnotation.State) {
   return { messages: [response] }
 }
 
-function shouldContinue(state: typeof MessagesAnnotation.State) {
+function shouldContinue(state: typeof AgentState.State) {
   const lastMessage = state.messages[state.messages.length - 1]
   if (lastMessage instanceof AIMessage && lastMessage.tool_calls?.length) {
     return "tools"
@@ -45,7 +62,7 @@ function shouldContinue(state: typeof MessagesAnnotation.State) {
   return END
 }
 
-const workflow = new StateGraph(MessagesAnnotation)
+const workflow = new StateGraph(AgentState)
   .addNode("agent", callAgent)
   .addNode("tools", toolNode)
   .addEdge(START, "agent")
@@ -64,8 +81,12 @@ export type StreamEvent =
 
 export async function* streamAgent(
   messages: BaseMessage[],
+  summary?: string,
 ): AsyncGenerator<StreamEvent> {
-  const eventStream = graph.streamEvents({ messages }, { version: "v2" })
+  const eventStream = graph.streamEvents(
+    { messages, summary: summary || "" },
+    { version: "v2" },
+  )
 
   for await (const event of eventStream) {
     switch (event.event) {
