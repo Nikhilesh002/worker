@@ -759,6 +759,457 @@ AS: ${data.as || "N/A"}`
   },
 )
 
+export const youtubeSearch = tool(
+  async ({ query, maxResults = 5 }: { query: string; maxResults?: number }) => {
+    try {
+      const key = process.env.YOUTUBE_API_KEY
+      if (!key) return "YouTube search unavailable: YOUTUBE_API_KEY not configured."
+
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&maxResults=${maxResults}&key=${key}`
+      const res = await fetch(url)
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => null)
+        return `YouTube search failed: ${err?.error?.message || `HTTP ${res.status}`}`
+      }
+
+      const data = await res.json()
+      if (!data.items?.length) return `No YouTube videos found for "${query}".`
+
+      const results = data.items
+        .map(
+          (item: { id: { videoId: string }; snippet: { title: string; channelTitle: string; publishedAt: string; description: string } }, i: number) => {
+            const s = item.snippet
+            const date = new Date(s.publishedAt).toLocaleDateString()
+            return `${i + 1}. **${s.title}**\n   Channel: ${s.channelTitle} | ${date}\n   https://youtube.com/watch?v=${item.id.videoId}`
+          },
+        )
+        .join("\n\n")
+
+      return `**YouTube results for "${query}":**\n\n${results}`
+    } catch (error) {
+      return `YouTube search error: ${error instanceof Error ? error.message : "Unknown error"}`
+    }
+  },
+  {
+    name: "youtube_search",
+    description:
+      "Search YouTube for videos. Returns titles, channels, dates, and links.",
+    schema: z.object({
+      query: z.string().describe("The search query"),
+      maxResults: z
+        .number()
+        .optional()
+        .describe("Number of results (default 5, max 10)"),
+    }),
+  },
+)
+
+export const newsSearch = tool(
+  async ({
+    query,
+    language = "en",
+    maxResults = 5,
+  }: {
+    query: string
+    language?: string
+    maxResults?: number
+  }) => {
+    try {
+      const key = process.env.GNEWS_API_KEY
+      if (!key) return "News search unavailable: GNEWS_API_KEY not configured."
+
+      const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=${language}&max=${maxResults}&apikey=${key}`
+      const res = await fetch(url)
+
+      if (!res.ok) {
+        return `News search failed: HTTP ${res.status}`
+      }
+
+      const data = await res.json()
+      if (!data.articles?.length) return `No news found for "${query}".`
+
+      const articles = data.articles
+        .map(
+          (a: { title: string; description: string; source: { name: string }; publishedAt: string; url: string }, i: number) => {
+            const date = new Date(a.publishedAt).toLocaleDateString()
+            return `${i + 1}. **${a.title}**\n   ${a.source.name} | ${date}\n   ${a.description || ""}\n   ${a.url}`
+          },
+        )
+        .join("\n\n")
+
+      return `**News for "${query}":**\n\n${articles}`
+    } catch (error) {
+      return `News search error: ${error instanceof Error ? error.message : "Unknown error"}`
+    }
+  },
+  {
+    name: "news_search",
+    description:
+      "Search for recent news articles on any topic. Returns headlines, sources, dates, and links.",
+    schema: z.object({
+      query: z.string().describe("The news topic to search for"),
+      language: z
+        .string()
+        .optional()
+        .describe('Language code (default "en"). E.g., "es", "fr", "de"'),
+      maxResults: z
+        .number()
+        .optional()
+        .describe("Number of results (default 5, max 10)"),
+    }),
+  },
+)
+
+export const movieSearch = tool(
+  async ({
+    query,
+    type = "movie",
+  }: {
+    query: string
+    type?: "movie" | "tv"
+  }) => {
+    try {
+      const key = process.env.TMDB_API_KEY
+      if (!key) return "Movie search unavailable: TMDB_API_KEY not configured."
+
+      const searchUrl = `https://api.themoviedb.org/3/search/${type}?api_key=${key}&query=${encodeURIComponent(query)}`
+      const searchRes = await fetch(searchUrl)
+      const searchData = await searchRes.json()
+
+      if (!searchData.results?.length) return `No ${type} results found for "${query}".`
+
+      const item = searchData.results[0]
+      const title = item.title || item.name
+      const date = item.release_date || item.first_air_date || "N/A"
+
+      // Fetch details for runtime, genres, etc.
+      const detailUrl = `https://api.themoviedb.org/3/${type}/${item.id}?api_key=${key}`
+      const detailRes = await fetch(detailUrl)
+      const detail = await detailRes.json()
+
+      const genres = detail.genres?.map((g: { name: string }) => g.name).join(", ") || "N/A"
+      const runtime =
+        type === "movie"
+          ? detail.runtime ? `${detail.runtime} min` : "N/A"
+          : detail.number_of_seasons ? `${detail.number_of_seasons} seasons, ${detail.number_of_episodes} episodes` : "N/A"
+
+      let output = `**${title}** (${date.split("-")[0] || "N/A"})\n`
+      output += `Rating: ${item.vote_average?.toFixed(1) || "N/A"}/10 (${item.vote_count?.toLocaleString() || 0} votes)\n`
+      output += `Genres: ${genres}\n`
+      output += `Runtime: ${runtime}\n`
+      if (detail.tagline) output += `Tagline: "${detail.tagline}"\n`
+      output += `\n${item.overview || "No overview available."}`
+      if (item.poster_path) {
+        output += `\n\nPoster: https://image.tmdb.org/t/p/w500${item.poster_path}`
+      }
+
+      return output
+    } catch (error) {
+      return `Movie search error: ${error instanceof Error ? error.message : "Unknown error"}`
+    }
+  },
+  {
+    name: "movie_search",
+    description:
+      "Search for movies or TV shows. Returns title, rating, genres, runtime, overview, and poster.",
+    schema: z.object({
+      query: z
+        .string()
+        .describe('Movie or TV show name (e.g., "Inception", "Breaking Bad")'),
+      type: z
+        .enum(["movie", "tv"])
+        .optional()
+        .describe('Search type: "movie" (default) or "tv"'),
+    }),
+  },
+)
+
+export const cryptoPrice = tool(
+  async ({ coin, currency = "usd" }: { coin: string; currency?: string }) => {
+    try {
+      const url = `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coin.toLowerCase())}?localization=false&tickers=false&community_data=false&developer_data=false`
+      const res = await fetch(url)
+
+      if (!res.ok) {
+        // Try search if direct ID fails
+        const searchUrl = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(coin)}`
+        const searchRes = await fetch(searchUrl)
+        const searchData = await searchRes.json()
+        const match = searchData.coins?.[0]
+        if (!match) return `Cryptocurrency "${coin}" not found.`
+
+        const retryRes = await fetch(
+          `https://api.coingecko.com/api/v3/coins/${match.id}?localization=false&tickers=false&community_data=false&developer_data=false`,
+        )
+        if (!retryRes.ok) return `Could not fetch data for "${coin}".`
+        const data = await retryRes.json()
+        return formatCryptoResponse(data, currency)
+      }
+
+      const data = await res.json()
+      return formatCryptoResponse(data, currency)
+    } catch (error) {
+      return `Crypto error: ${error instanceof Error ? error.message : "Unknown error"}`
+    }
+  },
+  {
+    name: "crypto_price",
+    description:
+      "Get real-time cryptocurrency price, market cap, 24h change, and stats. No API key required.",
+    schema: z.object({
+      coin: z
+        .string()
+        .describe(
+          'Coin ID or name (e.g., "bitcoin", "ethereum", "solana", "dogecoin")',
+        ),
+      currency: z
+        .string()
+        .optional()
+        .describe('Display currency (default "usd"). E.g., "eur", "gbp", "inr"'),
+    }),
+  },
+)
+
+function formatCryptoResponse(data: Record<string, unknown>, currency: string): string {
+  const market = data.market_data as Record<string, Record<string, number>>
+  const cur = currency.toLowerCase()
+  const price = market.current_price?.[cur]
+  const change24h = market.price_change_percentage_24h as unknown as number
+  const marketCap = market.market_cap?.[cur]
+  const high24 = market.high_24h?.[cur]
+  const low24 = market.low_24h?.[cur]
+  const ath = market.ath?.[cur]
+
+  const fmt = (n: number | undefined) =>
+    n !== undefined ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "N/A"
+  const fmtLarge = (n: number | undefined) => {
+    if (n === undefined) return "N/A"
+    if (n >= 1e12) return `${(n / 1e12).toFixed(2)}T`
+    if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`
+    if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`
+    return n.toLocaleString()
+  }
+
+  const symbol = (data.symbol as string)?.toUpperCase() || ""
+  const arrow = change24h >= 0 ? "▲" : "▼"
+
+  return `**${data.name} (${symbol})** — ${cur.toUpperCase()} ${fmt(price)}
+24h Change: ${arrow} ${change24h?.toFixed(2) || "N/A"}%
+24h High/Low: ${fmt(high24)} / ${fmt(low24)}
+Market Cap: ${fmtLarge(marketCap)}
+All-Time High: ${fmt(ath)}
+Market Cap Rank: #${data.market_cap_rank || "N/A"}`
+}
+
+export const stockPrice = tool(
+  async ({ symbol }: { symbol: string }) => {
+    try {
+      const key = process.env.TWELVEDATA_API_KEY
+      if (!key) return "Stock price unavailable: TWELVEDATA_API_KEY not configured."
+
+      const quoteUrl = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&apikey=${key}`
+      const res = await fetch(quoteUrl)
+      const data = await res.json()
+
+      if (data.code || data.status === "error") {
+        return `Stock lookup failed: ${data.message || "Symbol not found"}`
+      }
+
+      const change = parseFloat(data.change)
+      const pctChange = parseFloat(data.percent_change)
+      const arrow = change >= 0 ? "▲" : "▼"
+
+      return `**${data.name}** (${data.symbol}) — ${data.exchange}
+Price: $${parseFloat(data.close).toFixed(2)}
+Change: ${arrow} $${Math.abs(change).toFixed(2)} (${pctChange >= 0 ? "+" : ""}${pctChange.toFixed(2)}%)
+Open: $${parseFloat(data.open).toFixed(2)}
+High: $${parseFloat(data.high).toFixed(2)}
+Low: $${parseFloat(data.low).toFixed(2)}
+Previous Close: $${parseFloat(data.previous_close).toFixed(2)}
+Volume: ${parseInt(data.volume).toLocaleString()}
+As of: ${data.datetime}`
+    } catch (error) {
+      return `Stock error: ${error instanceof Error ? error.message : "Unknown error"}`
+    }
+  },
+  {
+    name: "stock_price",
+    description:
+      "Get real-time stock price, change, volume, and market data for any ticker symbol.",
+    schema: z.object({
+      symbol: z
+        .string()
+        .describe(
+          'Stock ticker symbol (e.g., "AAPL", "GOOGL", "TSLA", "MSFT")',
+        ),
+    }),
+  },
+)
+
+export const githubSearch = tool(
+  async ({
+    query,
+    type = "repositories",
+    limit = 5,
+  }: {
+    query: string
+    type?: "repositories" | "users"
+    limit?: number
+  }) => {
+    try {
+      const headers: Record<string, string> = {
+        Accept: "application/vnd.github+json",
+      }
+      const token = process.env.GITHUB_TOKEN
+      if (token) headers.Authorization = `Bearer ${token}`
+
+      const url = `https://api.github.com/search/${type}?q=${encodeURIComponent(query)}&per_page=${limit}`
+      const res = await fetch(url, { headers })
+
+      if (!res.ok) return `GitHub search failed: HTTP ${res.status}`
+
+      const data = await res.json()
+      if (!data.items?.length) return `No GitHub ${type} found for "${query}".`
+
+      if (type === "repositories") {
+        const repos = data.items
+          .map(
+            (r: { full_name: string; description: string; stargazers_count: number; language: string; html_url: string; updated_at: string }, i: number) => {
+              const stars =
+                r.stargazers_count >= 1000
+                  ? `${(r.stargazers_count / 1000).toFixed(1)}k`
+                  : r.stargazers_count
+              return `${i + 1}. **${r.full_name}** ⭐ ${stars}\n   ${r.description || "No description"}\n   Language: ${r.language || "N/A"} | Updated: ${new Date(r.updated_at).toLocaleDateString()}\n   ${r.html_url}`
+            },
+          )
+          .join("\n\n")
+        return `**GitHub repos for "${query}":**\n\n${repos}`
+      }
+
+      const users = data.items
+        .map(
+          (u: { login: string; html_url: string; type: string }, i: number) =>
+            `${i + 1}. **${u.login}** (${u.type})\n   ${u.html_url}`,
+        )
+        .join("\n\n")
+      return `**GitHub users for "${query}":**\n\n${users}`
+    } catch (error) {
+      return `GitHub search error: ${error instanceof Error ? error.message : "Unknown error"}`
+    }
+  },
+  {
+    name: "github_search",
+    description:
+      "Search GitHub for repositories or users. Returns names, stars, descriptions, and links.",
+    schema: z.object({
+      query: z
+        .string()
+        .describe('Search query (e.g., "react state management", "machine learning python")'),
+      type: z
+        .enum(["repositories", "users"])
+        .optional()
+        .describe('Search type: "repositories" (default) or "users"'),
+      limit: z.number().optional().describe("Number of results (default 5)"),
+    }),
+  },
+)
+
+export const bookSearch = tool(
+  async ({ query, maxResults = 5 }: { query: string; maxResults?: number }) => {
+    try {
+      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=${maxResults}`
+      const res = await fetch(url)
+
+      if (!res.ok) return `Book search failed: HTTP ${res.status}`
+
+      const data = await res.json()
+      if (!data.items?.length) return `No books found for "${query}".`
+
+      const books = data.items
+        .map(
+          (item: { volumeInfo: { title: string; authors?: string[]; publishedDate?: string; averageRating?: number; description?: string; infoLink?: string; pageCount?: number } }, i: number) => {
+            const v = item.volumeInfo
+            let entry = `${i + 1}. **${v.title}**`
+            if (v.authors?.length) entry += `\n   By: ${v.authors.join(", ")}`
+            if (v.publishedDate) entry += ` | ${v.publishedDate.split("-")[0]}`
+            if (v.pageCount) entry += ` | ${v.pageCount} pages`
+            if (v.averageRating) entry += ` | Rating: ${v.averageRating}/5`
+            if (v.description) {
+              entry += `\n   ${v.description.substring(0, 150)}${v.description.length > 150 ? "..." : ""}`
+            }
+            if (v.infoLink) entry += `\n   ${v.infoLink}`
+            return entry
+          },
+        )
+        .join("\n\n")
+
+      return `**Books for "${query}":**\n\n${books}`
+    } catch (error) {
+      return `Book search error: ${error instanceof Error ? error.message : "Unknown error"}`
+    }
+  },
+  {
+    name: "book_search",
+    description:
+      "Search for books using Google Books. Returns titles, authors, ratings, descriptions, and links.",
+    schema: z.object({
+      query: z
+        .string()
+        .describe('Book title, author, or topic (e.g., "atomic habits", "author:tolkien")'),
+      maxResults: z
+        .number()
+        .optional()
+        .describe("Number of results (default 5)"),
+    }),
+  },
+)
+
+export const placeSearch = tool(
+  async ({ query, limit = 5 }: { query: string; limit?: number }) => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=${limit}`
+      const res = await fetch(url, {
+        headers: { "User-Agent": "WorkerAI/1.0" },
+      })
+
+      if (!res.ok) return `Place search failed: HTTP ${res.status}`
+
+      const data = await res.json()
+      if (!data.length) return `No places found for "${query}".`
+
+      const places = data
+        .map(
+          (p: { display_name: string; lat: string; lon: string; type: string; address?: Record<string, string> }, i: number) => {
+            let entry = `${i + 1}. **${p.display_name}**`
+            entry += `\n   Type: ${p.type}`
+            entry += `\n   Coordinates: ${parseFloat(p.lat).toFixed(5)}, ${parseFloat(p.lon).toFixed(5)}`
+            entry += `\n   Map: https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=15/${p.lat}/${p.lon}`
+            return entry
+          },
+        )
+        .join("\n\n")
+
+      return `**Places for "${query}":**\n\n${places}`
+    } catch (error) {
+      return `Place search error: ${error instanceof Error ? error.message : "Unknown error"}`
+    }
+  },
+  {
+    name: "place_search",
+    description:
+      "Search for places, addresses, or landmarks worldwide. Returns location names, coordinates, and map links.",
+    schema: z.object({
+      query: z
+        .string()
+        .describe(
+          'Place, address, or landmark (e.g., "Eiffel Tower", "coffee shops in Tokyo", "1600 Pennsylvania Ave")',
+        ),
+      limit: z.number().optional().describe("Number of results (default 5)"),
+    }),
+  },
+)
+
 export const allTools = [
   webSearch,
   wikipedia,
@@ -775,4 +1226,12 @@ export const allTools = [
   textStats,
   encodeDecode,
   ipLookup,
+  youtubeSearch,
+  newsSearch,
+  movieSearch,
+  cryptoPrice,
+  stockPrice,
+  githubSearch,
+  bookSearch,
+  placeSearch,
 ]
