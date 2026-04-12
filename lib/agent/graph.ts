@@ -7,6 +7,7 @@ import {
 import { AIMessage, SystemMessage, BaseMessage } from "@langchain/core/messages"
 import { ToolNode } from "@langchain/langgraph/prebuilt"
 import { getModel } from "../groq"
+import { retry } from "@/lib/utils"
 import { allTools } from "./tools"
 import { SYSTEM_PROMPT } from "./systemPrompt"
 
@@ -14,8 +15,6 @@ const toolNode = new ToolNode(allTools)
 const toolNames = allTools.map((t) => t.name)
 
 async function callAgent(state: typeof MessagesAnnotation.State) {
-  const model = getModel().bindTools(allTools)
-
   const messages = state.messages
   const hasSystemMessage =
     messages.length > 0 && messages[0] instanceof SystemMessage
@@ -30,7 +29,11 @@ async function callAgent(state: typeof MessagesAnnotation.State) {
       ? [allMessages[0], ...allMessages.slice(-20)]
       : allMessages
 
-  const response = await model.invoke(trimmedMessages)
+  const response = await retry(
+    () => getModel().bindTools(allTools).invoke(trimmedMessages),
+    2,
+    400 + Math.random() * 600,
+  )
   return { messages: [response] }
 }
 
