@@ -1,6 +1,7 @@
 import { tool } from "@langchain/core/tools"
 import { create, all } from "mathjs"
 import { z } from "zod"
+import { fetchWithRetry } from "@/lib/utils"
 import { cascadingWebSearch } from "./search"
 
 const math = create(all)
@@ -115,7 +116,7 @@ export const wikipedia = tool(
   async ({ query }: { query: string }) => {
     try {
       const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=3`
-      const searchRes = await fetch(searchUrl)
+      const searchRes = await fetchWithRetry(searchUrl)
       const searchData = await searchRes.json()
 
       if (!searchData.query?.search?.length) {
@@ -124,7 +125,7 @@ export const wikipedia = tool(
 
       const pageId = searchData.query.search[0].pageid
       const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&pageids=${pageId}&format=json`
-      const contentRes = await fetch(contentUrl)
+      const contentRes = await fetchWithRetry(contentUrl)
       const contentData = await contentRes.json()
 
       const page = contentData.query.pages[pageId]
@@ -150,7 +151,7 @@ export const getWeather = tool(
   async ({ location }: { location: string }) => {
     try {
       const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`
-      const geoRes = await fetch(geoUrl)
+      const geoRes = await fetchWithRetry(geoUrl)
       const geoData = await geoRes.json()
 
       if (!geoData.results?.length) {
@@ -160,7 +161,7 @@ export const getWeather = tool(
       const { latitude, longitude, name, country } = geoData.results[0]
 
       const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code&temperature_unit=celsius`
-      const weatherRes = await fetch(weatherUrl)
+      const weatherRes = await fetchWithRetry(weatherUrl)
       const weatherData = await weatherRes.json()
 
       const current = weatherData.current
@@ -217,7 +218,7 @@ export const readWebpage = tool(
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 10000)
 
-      const res = await fetch(url, {
+      const res = await fetchWithRetry(url, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -339,13 +340,10 @@ export const translate = tool(
   }) => {
     try {
       const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`
-      const res = await fetch(url)
+      const res = await fetchWithRetry(url)
       const data = await res.json()
 
-      if (
-        !data.responseData?.translatedText ||
-        data.responseStatus === 403
-      ) {
+      if (!data.responseData?.translatedText || data.responseStatus === 403) {
         return `Translation failed: ${data.responseDetails || "Unknown error"}`
       }
 
@@ -367,22 +365,22 @@ export const translate = tool(
         .string()
         .optional()
         .describe(
-          'Source language code (e.g., "en", "es", "fr", "de", "ja"). Defaults to auto-detect.',
+          'Source language code (e.g., "en", "es", "fr", "de", "ja"). Defaults to auto-detect.'
         ),
       to: z
         .string()
         .describe(
-          'Target language code (e.g., "en", "es", "fr", "de", "ja", "hi", "zh")',
+          'Target language code (e.g., "en", "es", "fr", "de", "ja", "hi", "zh")'
         ),
     }),
-  },
+  }
 )
 
 export const dictionary = tool(
   async ({ word }: { word: string }) => {
     try {
-      const res = await fetch(
-        `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
+      const res = await fetchWithRetry(
+        `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`
       )
 
       if (!res.ok) {
@@ -426,7 +424,7 @@ export const dictionary = tool(
     schema: z.object({
       word: z.string().describe("The English word to look up"),
     }),
-  },
+  }
 )
 
 export const convertCurrency = tool(
@@ -440,8 +438,8 @@ export const convertCurrency = tool(
     to: string
   }) => {
     try {
-      const res = await fetch(
-        `https://api.frankfurter.dev/v1/latest?amount=${amount}&from=${from.toUpperCase()}&to=${to.toUpperCase()}`,
+      const res = await fetchWithRetry(
+        `https://api.frankfurter.dev/v1/latest?amount=${amount}&from=${from.toUpperCase()}&to=${to.toUpperCase()}`
       )
 
       if (!res.ok) {
@@ -474,19 +472,11 @@ export const convertCurrency = tool(
         .string()
         .describe('Target currency code (e.g., "USD", "EUR", "GBP", "INR")'),
     }),
-  },
+  }
 )
 
 export const convertUnits = tool(
-  async ({
-    value,
-    from,
-    to,
-  }: {
-    value: number
-    from: string
-    to: string
-  }) => {
+  async ({ value, from, to }: { value: number; from: string; to: string }) => {
     try {
       const result = math.evaluate(`${value} ${from} to ${to}`)
       return `**${value} ${from}** = **${math.format(result, { precision: 6 })}**`
@@ -499,21 +489,17 @@ export const convertUnits = tool(
     description: `Convert between physical units. Supports length (m, km, mi, ft, in, cm, mm, yd), weight (kg, g, lb, oz, ton), temperature (degC, degF, K), volume (L, mL, gallon, cup, fl oz), time (s, min, hour, day, week, year), speed (m/s, km/h, mph), area (m^2, km^2, acre, hectare), data (byte, KB, MB, GB, TB), energy (J, kJ, cal, kcal, Wh, kWh), and more.`,
     schema: z.object({
       value: z.number().describe("The numeric value to convert"),
-      from: z
-        .string()
-        .describe('Source unit (e.g., "km", "lb", "degC", "GB")'),
-      to: z
-        .string()
-        .describe('Target unit (e.g., "mi", "kg", "degF", "MB")'),
+      from: z.string().describe('Source unit (e.g., "km", "lb", "degC", "GB")'),
+      to: z.string().describe('Target unit (e.g., "mi", "kg", "degF", "MB")'),
     }),
-  },
+  }
 )
 
 export const countryInfo = tool(
   async ({ country }: { country: string }) => {
     try {
-      const res = await fetch(
-        `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fields=name,capital,population,region,subregion,languages,currencies,timezones,flags,area,borders,continents`,
+      const res = await fetchWithRetry(
+        `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fields=name,capital,population,region,subregion,languages,currencies,timezones,flags,area,borders,continents`
       )
 
       if (!res.ok) {
@@ -527,7 +513,9 @@ export const countryInfo = tool(
         ? Object.values(c.languages).join(", ")
         : "N/A"
       const currencies = c.currencies
-        ? Object.values(c.currencies as Record<string, { name: string; symbol: string }>)
+        ? Object.values(
+            c.currencies as Record<string, { name: string; symbol: string }>
+          )
             .map((cur) => `${cur.name} (${cur.symbol})`)
             .join(", ")
         : "N/A"
@@ -535,9 +523,7 @@ export const countryInfo = tool(
         c.population >= 1_000_000
           ? `${(c.population / 1_000_000).toFixed(1)}M`
           : c.population.toLocaleString()
-      const area = c.area
-        ? `${c.area.toLocaleString()} km²`
-        : "N/A"
+      const area = c.area ? `${c.area.toLocaleString()} km²` : "N/A"
 
       return `**${c.name.common}** (${c.name.official})
 Region: ${c.region}${c.subregion ? ` — ${c.subregion}` : ""}
@@ -559,11 +545,9 @@ Flag: ${c.flags?.png || "N/A"}`
     schema: z.object({
       country: z
         .string()
-        .describe(
-          'Country name (e.g., "Japan", "Brazil", "Germany")',
-        ),
+        .describe('Country name (e.g., "Japan", "Brazil", "Germany")'),
     }),
-  },
+  }
 )
 
 export const randomNumber = tool(
@@ -580,7 +564,7 @@ export const randomNumber = tool(
   }) => {
     if (type === "coin") {
       const flips = Array.from({ length: count }, () =>
-        Math.random() < 0.5 ? "Heads" : "Tails",
+        Math.random() < 0.5 ? "Heads" : "Tails"
       )
       return `**Coin flip${count > 1 ? "s" : ""}:** ${flips.join(", ")}`
     }
@@ -588,7 +572,7 @@ export const randomNumber = tool(
     if (type === "dice") {
       const rolls = Array.from(
         { length: count },
-        () => Math.floor(Math.random() * (max - 1)) + 1,
+        () => Math.floor(Math.random() * (max - 1)) + 1
       )
       const total = rolls.reduce((a, b) => a + b, 0)
       return `**Dice roll${count > 1 ? "s" : ""} (d${max}):** ${rolls.join(", ")}${count > 1 ? ` (total: ${total})` : ""}`
@@ -614,16 +598,13 @@ For dice: max = number of sides (default 6). For coin: count = number of flips.`
         .number()
         .optional()
         .describe("Maximum value (default 100). For dice: number of sides."),
-      count: z
-        .number()
-        .optional()
-        .describe("How many to generate (default 1)"),
+      count: z.number().optional().describe("How many to generate (default 1)"),
       type: z
         .enum(["integer", "decimal", "coin", "dice"])
         .optional()
         .describe('Type of random generation (default "integer")'),
     }),
-  },
+  }
 )
 
 export const textStats = tool(
@@ -658,7 +639,7 @@ Speaking time: ~${speakingTimeMin} min`
     schema: z.object({
       text: z.string().describe("The text to analyze"),
     }),
-  },
+  }
 )
 
 export const encodeDecode = tool(
@@ -715,7 +696,7 @@ export const encodeDecode = tool(
         ])
         .describe("The operation to perform"),
     }),
-  },
+  }
 )
 
 export const ipLookup = tool(
@@ -725,7 +706,7 @@ export const ipLookup = tool(
         ? `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,message,country,regionName,city,zip,lat,lon,timezone,isp,org,as,query`
         : `http://ip-api.com/json/?fields=status,message,country,regionName,city,zip,lat,lon,timezone,isp,org,as,query`
 
-      const res = await fetch(url)
+      const res = await fetchWithRetry(url)
       const data = await res.json()
 
       if (data.status === "fail") {
@@ -753,20 +734,21 @@ AS: ${data.as || "N/A"}`
         .string()
         .optional()
         .describe(
-          "IP address to look up (e.g., \"8.8.8.8\"). Omit to get server's own IP info.",
+          'IP address to look up (e.g., "8.8.8.8"). Omit to get server\'s own IP info.'
         ),
     }),
-  },
+  }
 )
 
 export const youtubeSearch = tool(
   async ({ query, maxResults = 5 }: { query: string; maxResults?: number }) => {
     try {
       const key = process.env.YOUTUBE_API_KEY
-      if (!key) return "YouTube search unavailable: YOUTUBE_API_KEY not configured."
+      if (!key)
+        return "YouTube search unavailable: YOUTUBE_API_KEY not configured."
 
       const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&maxResults=${maxResults}&key=${key}`
-      const res = await fetch(url)
+      const res = await fetchWithRetry(url)
 
       if (!res.ok) {
         const err = await res.json().catch(() => null)
@@ -778,11 +760,22 @@ export const youtubeSearch = tool(
 
       const results = data.items
         .map(
-          (item: { id: { videoId: string }; snippet: { title: string; channelTitle: string; publishedAt: string; description: string } }, i: number) => {
+          (
+            item: {
+              id: { videoId: string }
+              snippet: {
+                title: string
+                channelTitle: string
+                publishedAt: string
+                description: string
+              }
+            },
+            i: number
+          ) => {
             const s = item.snippet
             const date = new Date(s.publishedAt).toLocaleDateString()
             return `${i + 1}. **${s.title}**\n   Channel: ${s.channelTitle} | ${date}\n   https://youtube.com/watch?v=${item.id.videoId}`
-          },
+          }
         )
         .join("\n\n")
 
@@ -802,7 +795,7 @@ export const youtubeSearch = tool(
         .optional()
         .describe("Number of results (default 5, max 10)"),
     }),
-  },
+  }
 )
 
 export const newsSearch = tool(
@@ -820,7 +813,7 @@ export const newsSearch = tool(
       if (!key) return "News search unavailable: GNEWS_API_KEY not configured."
 
       const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=${language}&max=${maxResults}&apikey=${key}`
-      const res = await fetch(url)
+      const res = await fetchWithRetry(url)
 
       if (!res.ok) {
         return `News search failed: HTTP ${res.status}`
@@ -831,10 +824,19 @@ export const newsSearch = tool(
 
       const articles = data.articles
         .map(
-          (a: { title: string; description: string; source: { name: string }; publishedAt: string; url: string }, i: number) => {
+          (
+            a: {
+              title: string
+              description: string
+              source: { name: string }
+              publishedAt: string
+              url: string
+            },
+            i: number
+          ) => {
             const date = new Date(a.publishedAt).toLocaleDateString()
             return `${i + 1}. **${a.title}**\n   ${a.source.name} | ${date}\n   ${a.description || ""}\n   ${a.url}`
-          },
+          }
         )
         .join("\n\n")
 
@@ -858,7 +860,7 @@ export const newsSearch = tool(
         .optional()
         .describe("Number of results (default 5, max 10)"),
     }),
-  },
+  }
 )
 
 export const movieSearch = tool(
@@ -874,10 +876,11 @@ export const movieSearch = tool(
       if (!key) return "Movie search unavailable: TMDB_API_KEY not configured."
 
       const searchUrl = `https://api.themoviedb.org/3/search/${type}?api_key=${key}&query=${encodeURIComponent(query)}`
-      const searchRes = await fetch(searchUrl)
+      const searchRes = await fetchWithRetry(searchUrl)
       const searchData = await searchRes.json()
 
-      if (!searchData.results?.length) return `No ${type} results found for "${query}".`
+      if (!searchData.results?.length)
+        return `No ${type} results found for "${query}".`
 
       const item = searchData.results[0]
       const title = item.title || item.name
@@ -885,14 +888,19 @@ export const movieSearch = tool(
 
       // Fetch details for runtime, genres, etc.
       const detailUrl = `https://api.themoviedb.org/3/${type}/${item.id}?api_key=${key}`
-      const detailRes = await fetch(detailUrl)
+      const detailRes = await fetchWithRetry(detailUrl)
       const detail = await detailRes.json()
 
-      const genres = detail.genres?.map((g: { name: string }) => g.name).join(", ") || "N/A"
+      const genres =
+        detail.genres?.map((g: { name: string }) => g.name).join(", ") || "N/A"
       const runtime =
         type === "movie"
-          ? detail.runtime ? `${detail.runtime} min` : "N/A"
-          : detail.number_of_seasons ? `${detail.number_of_seasons} seasons, ${detail.number_of_episodes} episodes` : "N/A"
+          ? detail.runtime
+            ? `${detail.runtime} min`
+            : "N/A"
+          : detail.number_of_seasons
+            ? `${detail.number_of_seasons} seasons, ${detail.number_of_episodes} episodes`
+            : "N/A"
 
       let output = `**${title}** (${date.split("-")[0] || "N/A"})\n`
       output += `Rating: ${item.vote_average?.toFixed(1) || "N/A"}/10 (${item.vote_count?.toLocaleString() || 0} votes)\n`
@@ -922,25 +930,25 @@ export const movieSearch = tool(
         .optional()
         .describe('Search type: "movie" (default) or "tv"'),
     }),
-  },
+  }
 )
 
 export const cryptoPrice = tool(
   async ({ coin, currency = "usd" }: { coin: string; currency?: string }) => {
     try {
       const url = `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coin.toLowerCase())}?localization=false&tickers=false&community_data=false&developer_data=false`
-      const res = await fetch(url)
+      const res = await fetchWithRetry(url)
 
       if (!res.ok) {
         // Try search if direct ID fails
         const searchUrl = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(coin)}`
-        const searchRes = await fetch(searchUrl)
+        const searchRes = await fetchWithRetry(searchUrl)
         const searchData = await searchRes.json()
         const match = searchData.coins?.[0]
         if (!match) return `Cryptocurrency "${coin}" not found.`
 
-        const retryRes = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${match.id}?localization=false&tickers=false&community_data=false&developer_data=false`,
+        const retryRes = await fetchWithRetry(
+          `https://api.coingecko.com/api/v3/coins/${match.id}?localization=false&tickers=false&community_data=false&developer_data=false`
         )
         if (!retryRes.ok) return `Could not fetch data for "${coin}".`
         const data = await retryRes.json()
@@ -961,17 +969,22 @@ export const cryptoPrice = tool(
       coin: z
         .string()
         .describe(
-          'Coin ID or name (e.g., "bitcoin", "ethereum", "solana", "dogecoin")',
+          'Coin ID or name (e.g., "bitcoin", "ethereum", "solana", "dogecoin")'
         ),
       currency: z
         .string()
         .optional()
-        .describe('Display currency (default "usd"). E.g., "eur", "gbp", "inr"'),
+        .describe(
+          'Display currency (default "usd"). E.g., "eur", "gbp", "inr"'
+        ),
     }),
-  },
+  }
 )
 
-function formatCryptoResponse(data: Record<string, unknown>, currency: string): string {
+function formatCryptoResponse(
+  data: Record<string, unknown>,
+  currency: string
+): string {
   const market = data.market_data as Record<string, Record<string, number>>
   const cur = currency.toLowerCase()
   const price = market.current_price?.[cur]
@@ -982,7 +995,9 @@ function formatCryptoResponse(data: Record<string, unknown>, currency: string): 
   const ath = market.ath?.[cur]
 
   const fmt = (n: number | undefined) =>
-    n !== undefined ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "N/A"
+    n !== undefined
+      ? n.toLocaleString("en-US", { maximumFractionDigits: 2 })
+      : "N/A"
   const fmtLarge = (n: number | undefined) => {
     if (n === undefined) return "N/A"
     if (n >= 1e12) return `${(n / 1e12).toFixed(2)}T`
@@ -1006,10 +1021,11 @@ export const stockPrice = tool(
   async ({ symbol }: { symbol: string }) => {
     try {
       const key = process.env.TWELVEDATA_API_KEY
-      if (!key) return "Stock price unavailable: TWELVEDATA_API_KEY not configured."
+      if (!key)
+        return "Stock price unavailable: TWELVEDATA_API_KEY not configured."
 
       const quoteUrl = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol.toUpperCase())}&apikey=${key}`
-      const res = await fetch(quoteUrl)
+      const res = await fetchWithRetry(quoteUrl)
       const data = await res.json()
 
       if (data.code || data.status === "error") {
@@ -1041,10 +1057,10 @@ As of: ${data.datetime}`
       symbol: z
         .string()
         .describe(
-          'Stock ticker symbol (e.g., "AAPL", "GOOGL", "TSLA", "MSFT")',
+          'Stock ticker symbol (e.g., "AAPL", "GOOGL", "TSLA", "MSFT")'
         ),
     }),
-  },
+  }
 )
 
 export const githubSearch = tool(
@@ -1065,7 +1081,7 @@ export const githubSearch = tool(
       if (token) headers.Authorization = `Bearer ${token}`
 
       const url = `https://api.github.com/search/${type}?q=${encodeURIComponent(query)}&per_page=${limit}`
-      const res = await fetch(url, { headers })
+      const res = await fetchWithRetry(url, { headers })
 
       if (!res.ok) return `GitHub search failed: HTTP ${res.status}`
 
@@ -1075,13 +1091,23 @@ export const githubSearch = tool(
       if (type === "repositories") {
         const repos = data.items
           .map(
-            (r: { full_name: string; description: string; stargazers_count: number; language: string; html_url: string; updated_at: string }, i: number) => {
+            (
+              r: {
+                full_name: string
+                description: string
+                stargazers_count: number
+                language: string
+                html_url: string
+                updated_at: string
+              },
+              i: number
+            ) => {
               const stars =
                 r.stargazers_count >= 1000
                   ? `${(r.stargazers_count / 1000).toFixed(1)}k`
                   : r.stargazers_count
               return `${i + 1}. **${r.full_name}** ⭐ ${stars}\n   ${r.description || "No description"}\n   Language: ${r.language || "N/A"} | Updated: ${new Date(r.updated_at).toLocaleDateString()}\n   ${r.html_url}`
-            },
+            }
           )
           .join("\n\n")
         return `**GitHub repos for "${query}":**\n\n${repos}`
@@ -1090,7 +1116,7 @@ export const githubSearch = tool(
       const users = data.items
         .map(
           (u: { login: string; html_url: string; type: string }, i: number) =>
-            `${i + 1}. **${u.login}** (${u.type})\n   ${u.html_url}`,
+            `${i + 1}. **${u.login}** (${u.type})\n   ${u.html_url}`
         )
         .join("\n\n")
       return `**GitHub users for "${query}":**\n\n${users}`
@@ -1105,21 +1131,23 @@ export const githubSearch = tool(
     schema: z.object({
       query: z
         .string()
-        .describe('Search query (e.g., "react state management", "machine learning python")'),
+        .describe(
+          'Search query (e.g., "react state management", "machine learning python")'
+        ),
       type: z
         .enum(["repositories", "users"])
         .optional()
         .describe('Search type: "repositories" (default) or "users"'),
       limit: z.number().optional().describe("Number of results (default 5)"),
     }),
-  },
+  }
 )
 
 export const bookSearch = tool(
   async ({ query, maxResults = 5 }: { query: string; maxResults?: number }) => {
     try {
       const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=${maxResults}`
-      const res = await fetch(url)
+      const res = await fetchWithRetry(url)
 
       if (!res.ok) return `Book search failed: HTTP ${res.status}`
 
@@ -1128,7 +1156,20 @@ export const bookSearch = tool(
 
       const books = data.items
         .map(
-          (item: { volumeInfo: { title: string; authors?: string[]; publishedDate?: string; averageRating?: number; description?: string; infoLink?: string; pageCount?: number } }, i: number) => {
+          (
+            item: {
+              volumeInfo: {
+                title: string
+                authors?: string[]
+                publishedDate?: string
+                averageRating?: number
+                description?: string
+                infoLink?: string
+                pageCount?: number
+              }
+            },
+            i: number
+          ) => {
             const v = item.volumeInfo
             let entry = `${i + 1}. **${v.title}**`
             if (v.authors?.length) entry += `\n   By: ${v.authors.join(", ")}`
@@ -1140,7 +1181,7 @@ export const bookSearch = tool(
             }
             if (v.infoLink) entry += `\n   ${v.infoLink}`
             return entry
-          },
+          }
         )
         .join("\n\n")
 
@@ -1156,20 +1197,22 @@ export const bookSearch = tool(
     schema: z.object({
       query: z
         .string()
-        .describe('Book title, author, or topic (e.g., "atomic habits", "author:tolkien")'),
+        .describe(
+          'Book title, author, or topic (e.g., "atomic habits", "author:tolkien")'
+        ),
       maxResults: z
         .number()
         .optional()
         .describe("Number of results (default 5)"),
     }),
-  },
+  }
 )
 
 export const placeSearch = tool(
   async ({ query, limit = 5 }: { query: string; limit?: number }) => {
     try {
       const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=${limit}`
-      const res = await fetch(url, {
+      const res = await fetchWithRetry(url, {
         headers: { "User-Agent": "WorkerAI/1.0" },
       })
 
@@ -1180,13 +1223,22 @@ export const placeSearch = tool(
 
       const places = data
         .map(
-          (p: { display_name: string; lat: string; lon: string; type: string; address?: Record<string, string> }, i: number) => {
+          (
+            p: {
+              display_name: string
+              lat: string
+              lon: string
+              type: string
+              address?: Record<string, string>
+            },
+            i: number
+          ) => {
             let entry = `${i + 1}. **${p.display_name}**`
             entry += `\n   Type: ${p.type}`
             entry += `\n   Coordinates: ${parseFloat(p.lat).toFixed(5)}, ${parseFloat(p.lon).toFixed(5)}`
             entry += `\n   Map: https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=15/${p.lat}/${p.lon}`
             return entry
-          },
+          }
         )
         .join("\n\n")
 
@@ -1203,11 +1255,11 @@ export const placeSearch = tool(
       query: z
         .string()
         .describe(
-          'Place, address, or landmark (e.g., "Eiffel Tower", "coffee shops in Tokyo", "1600 Pennsylvania Ave")',
+          'Place, address, or landmark (e.g., "Eiffel Tower", "coffee shops in Tokyo", "1600 Pennsylvania Ave")'
         ),
       limit: z.number().optional().describe("Number of results (default 5)"),
     }),
-  },
+  }
 )
 
 export const allTools = [

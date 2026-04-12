@@ -1,6 +1,8 @@
 // Cascading web search: Brave > Tavily > Serper > Google Custom Search
 // Configure API keys in .env — only providers with keys are tried
 
+import { fetchWithRetry } from "../utils"
+
 type SearchResult = {
   title: string
   snippet: string
@@ -11,7 +13,7 @@ async function braveSearch(query: string): Promise<SearchResult[]> {
   const key = process.env.BRAVE_API_KEY
   if (!key) throw new Error("No API key")
 
-  const res = await fetch(
+  const res = await fetchWithRetry(
     `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
     {
       headers: {
@@ -19,7 +21,7 @@ async function braveSearch(query: string): Promise<SearchResult[]> {
         "Accept-Encoding": "gzip",
         "X-Subscription-Token": key,
       },
-    },
+    }
   )
 
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -38,7 +40,7 @@ async function tavilySearch(query: string): Promise<SearchResult[]> {
   const key = process.env.TAVILY_API_KEY
   if (!key) throw new Error("No API key")
 
-  const res = await fetch("https://api.tavily.com/search", {
+  const res = await fetchWithRetry("https://api.tavily.com/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -63,7 +65,7 @@ async function serperSearch(query: string): Promise<SearchResult[]> {
   const key = process.env.SERPER_API_KEY
   if (!key) throw new Error("No API key")
 
-  const res = await fetch("https://google.serper.dev/search", {
+  const res = await fetchWithRetry("https://google.serper.dev/search", {
     method: "POST",
     headers: { "X-API-KEY": key, "Content-Type": "application/json" },
     body: JSON.stringify({ q: query }),
@@ -72,13 +74,11 @@ async function serperSearch(query: string): Promise<SearchResult[]> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
 
-  return (data.organic || [])
-    .slice(0, 5)
-    .map((r: Record<string, string>) => ({
-      title: r.title,
-      snippet: r.snippet,
-      url: r.link,
-    }))
+  return (data.organic || []).slice(0, 5).map((r: Record<string, string>) => ({
+    title: r.title,
+    snippet: r.snippet,
+    url: r.link,
+  }))
 }
 
 async function googleSearch(query: string): Promise<SearchResult[]> {
@@ -86,20 +86,18 @@ async function googleSearch(query: string): Promise<SearchResult[]> {
   const cx = process.env.GOOGLE_SEARCH_CX
   if (!key || !cx) throw new Error("No API key")
 
-  const res = await fetch(
-    `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=5`,
+  const res = await fetchWithRetry(
+    `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=5`
   )
 
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
 
-  return (data.items || [])
-    .slice(0, 5)
-    .map((r: Record<string, string>) => ({
-      title: r.title,
-      snippet: r.snippet,
-      url: r.link,
-    }))
+  return (data.items || []).slice(0, 5).map((r: Record<string, string>) => ({
+    title: r.title,
+    snippet: r.snippet,
+    url: r.link,
+  }))
 }
 
 // Priority: Brave (2000/mo) > Tavily (1000/mo) > Serper (2500 one-time) > Google (100/day)
@@ -130,7 +128,7 @@ export async function cascadingWebSearch(query: string): Promise<string> {
       }
     } catch (e) {
       errors.push(
-        `${provider.name}: ${e instanceof Error ? e.message : "failed"}`,
+        `${provider.name}: ${e instanceof Error ? e.message : "failed"}`
       )
     }
   }
