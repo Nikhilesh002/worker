@@ -9,33 +9,6 @@ type SearchResult = {
   url?: string
 }
 
-async function braveSearch(query: string): Promise<SearchResult[]> {
-  const key = process.env.BRAVE_API_KEY
-  if (!key) throw new Error("No API key")
-
-  const res = await fetchWithRetry(
-    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
-    {
-      headers: {
-        Accept: "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": key,
-      },
-    }
-  )
-
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const data = await res.json()
-
-  return (data.web?.results || [])
-    .slice(0, 5)
-    .map((r: Record<string, string>) => ({
-      title: r.title,
-      snippet: r.description,
-      url: r.url,
-    }))
-}
-
 async function tavilySearch(query: string): Promise<SearchResult[]> {
   const key = process.env.TAVILY_API_KEY
   if (!key) throw new Error("No API key")
@@ -81,31 +54,12 @@ async function serperSearch(query: string): Promise<SearchResult[]> {
   }))
 }
 
-async function googleSearch(query: string): Promise<SearchResult[]> {
-  const key = process.env.GOOGLE_SEARCH_API_KEY
-  const cx = process.env.GOOGLE_SEARCH_CX
-  if (!key || !cx) throw new Error("No API key")
-
-  const res = await fetchWithRetry(
-    `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=5`
-  )
-
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const data = await res.json()
-
-  return (data.items || []).slice(0, 5).map((r: Record<string, string>) => ({
-    title: r.title,
-    snippet: r.snippet,
-    url: r.link,
-  }))
-}
-
 // Priority: Brave (2000/mo) > Tavily (1000/mo) > Serper (2500 one-time) > Google (100/day)
 const searchProviders = [
-  { name: "Brave", fn: braveSearch },
   { name: "Tavily", fn: tavilySearch },
   { name: "Serper", fn: serperSearch },
-  { name: "Google", fn: googleSearch },
+  // { name: "Google", fn: googleSearch },
+  // { name: "Brave", fn: braveSearch },
 ]
 
 export async function cascadingWebSearch(query: string): Promise<string> {
@@ -135,3 +89,49 @@ export async function cascadingWebSearch(query: string): Promise<string> {
 
   return `No results found for "${query}". ${errors.length > 0 ? `Errors: ${errors.join("; ")}.` : ""} Try the read_webpage tool with a specific URL.`
 }
+
+// async function braveSearch(query: string): Promise<SearchResult[]> {
+//   const key = process.env.BRAVE_API_KEY
+//   if (!key) throw new Error("No API key")
+
+//   const res = await fetchWithRetry(
+//     `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
+//     {
+//       headers: {
+//         Accept: "application/json",
+//         "Accept-Encoding": "gzip",
+//         "X-Subscription-Token": key,
+//       },
+//     }
+//   )
+
+//   if (!res.ok) throw new Error(`HTTP ${res.status}`)
+//   const data = await res.json()
+
+//   return (data.web?.results || [])
+//     .slice(0, 5)
+//     .map((r: Record<string, string>) => ({
+//       title: r.title,
+//       snippet: r.description,
+//       url: r.url,
+//     }))
+// }
+
+// async function googleSearch(query: string): Promise<SearchResult[]> {
+//   const key = process.env.GOOGLE_SEARCH_API_KEY
+//   const cx = process.env.GOOGLE_SEARCH_CX
+//   if (!key || !cx) throw new Error("No API key")
+
+//   const res = await fetchWithRetry(
+//     `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=5`
+//   )
+
+//   if (!res.ok) throw new Error(`HTTP ${res.status}`)
+//   const data = await res.json()
+
+//   return (data.items || []).slice(0, 5).map((r: Record<string, string>) => ({
+//     title: r.title,
+//     snippet: r.snippet,
+//     url: r.link,
+//   }))
+// }

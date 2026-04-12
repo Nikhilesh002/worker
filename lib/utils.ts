@@ -5,7 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-
 export async function retry(fn: any, retries: number, delay = 0) {
   try {
     return await fn()

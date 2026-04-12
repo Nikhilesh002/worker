@@ -1,7 +1,11 @@
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { streamAgent } from "@/lib/agent/graph"
-import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages"
+import {
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+} from "@langchain/core/messages"
 import { SYSTEM_PROMPT } from "@/lib/agent/systemPrompt"
 import { summarizeMessages } from "@/lib/agent/summarize"
 
@@ -59,7 +63,7 @@ export async function POST(req: Request) {
       // Strip stored tool call markers for context
       const cleanContent = msg.content.replace(
         /<<<TOOL_CALL:[\s\S]*?<<<END_TOOL_CALL>>>\n?/g,
-        "",
+        ""
       )
       return new AIMessage(cleanContent)
     }),
@@ -70,9 +74,7 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       const send = (data: Record<string, unknown>) => {
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
-        )
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
       }
 
       try {
@@ -86,7 +88,7 @@ export async function POST(req: Request) {
 
         for await (const event of streamAgent(
           langchainMessages,
-          chat?.summary || undefined,
+          chat?.summary || undefined
         )) {
           switch (event.type) {
             case "token":
@@ -100,7 +102,7 @@ export async function POST(req: Request) {
                 currentText = ""
               }
               storedParts.push(
-                `<<<TOOL_CALL:${event.name}>>>\n${JSON.stringify(event.input)}\n`,
+                `<<<TOOL_CALL:${event.name}>>>\n${JSON.stringify(event.input)}\n`
               )
               send(event)
               break
@@ -136,7 +138,7 @@ export async function POST(req: Request) {
             currentChatId,
             chat?.summary || null,
             history.map((m) => ({ role: m.role, content: m.content })),
-            summarizedUpTo,
+            summarizedUpTo
           )
         }
 
@@ -145,8 +147,7 @@ export async function POST(req: Request) {
         console.error("Stream error:", error)
         send({
           type: "error",
-          message:
-            error instanceof Error ? error.message : "An error occurred",
+          message: error instanceof Error ? error.message : "An error occurred",
         })
       } finally {
         controller.close()
@@ -172,7 +173,7 @@ function triggerSummarization(
   chatId: string,
   existingSummary: string | null,
   allMessages: { role: string; content: string }[],
-  summarizedUpTo: number,
+  summarizedUpTo: number
 ) {
   // Summarize everything except the last few messages (those stay as raw context)
   const keepRaw = 6
@@ -181,12 +182,12 @@ function triggerSummarization(
 
   if (toSummarize.length < 4) return // Not enough new messages to bother
 
-  summarizeMessages(existingSummary, toSummarize)
+  summarizeMessages({ existingSummary, messagePairs: toSummarize })
     .then((summary) =>
       prisma.chat.update({
         where: { id: chatId },
         data: { summary, summarizedUpToIndex: endIndex },
-      }),
+      })
     )
     .catch((err) => console.error("Summarization failed:", err))
 }

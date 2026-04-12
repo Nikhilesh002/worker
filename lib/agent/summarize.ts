@@ -11,10 +11,13 @@ const SUMMARIZE_PROMPT = `You are a conversation summarizer. Condense the conver
 Write in third person ("The user asked about...", "The assistant found that...").
 Be concise but don't lose important details. Max 400 words.`
 
-export async function summarizeMessages(
-  existingSummary: string | null,
-  messagePairs: { role: string; content: string }[],
-): Promise<string> {
+export async function summarizeMessages({
+  existingSummary,
+  messagePairs,
+}: {
+  existingSummary: string | null
+  messagePairs: { role: string; content: string }[]
+}): Promise<string> {
   let input = ""
 
   if (existingSummary) {
@@ -26,7 +29,7 @@ export async function summarizeMessages(
     // Strip tool call markers for cleaner summarization
     const clean = msg.content.replace(
       /<<<TOOL_CALL:[\s\S]*?<<<END_TOOL_CALL>>>\n?/g,
-      "",
+      ""
     )
     if (clean.trim()) {
       input += `${label}: ${clean.trim()}\n\n`
@@ -40,7 +43,7 @@ export async function summarizeMessages(
         new HumanMessage(input),
       ]),
     2,
-    400 + Math.random() * 600,
+    400 + Math.random() * 600
   )
 
   return typeof response.content === "string"
