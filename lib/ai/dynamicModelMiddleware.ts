@@ -151,7 +151,7 @@ async function classifyRoute(messages: BaseMessage[]): Promise<RouteDecision> {
   }
 }
 
-async function selectRoutedModel(request: RoutedModelRequest): Promise<RoutedModelResult> {
+export async function selectRoutedModel(request: RoutedModelRequest): Promise<RoutedModelResult> {
   const route = await classifyRoute(request.messages)
   const tier = getTierForRoute(route)
   const selected = createModelForTier(tier)
@@ -165,6 +165,8 @@ async function selectRoutedModel(request: RoutedModelRequest): Promise<RoutedMod
     tools,
   }
 }
+
+export { classifyRoute }
 
 export const dynamicModelMiddleware = createMiddleware({
   name: "DynamicModelMiddleware",
