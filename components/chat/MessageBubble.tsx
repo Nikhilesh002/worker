@@ -10,7 +10,7 @@ interface MessageBubbleProps {
     id: string
     content: string
     role: "user" | "assistant"
-    status?: "normal" | "error"
+    status?: "normal" | "error" | "loading"
   }
   isStreaming?: boolean
   onRetry?: () => void
@@ -139,6 +139,7 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
     ? [{ type: "text" as const, content: message.content }]
     : parseContent(message.content)
   const isError = message.status === "error"
+  const isLoading = message.status === "loading"
 
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -154,9 +155,22 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
             ? "bg-cyan-500/10 border border-cyan-500/20 text-zinc-100"
             : isError
               ? "bg-red-500/10 border border-red-500/20 text-zinc-100"
+              : isLoading
+                ? "bg-white/[0.03] border border-white/[0.06] text-zinc-200"
               : "bg-white/[0.03] border border-white/[0.06] text-zinc-200"
         }`}
       >
+        {isLoading ? (
+          <div className="flex items-center gap-2 min-h-8">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:0ms]" />
+              <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:150ms]" />
+              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:300ms]" />
+            </div>
+            <span className="text-xs text-zinc-500">Thinking...</span>
+          </div>
+        ) : null}
+
         {parts.map((part, i) =>
           part.type === "text" ? (
             <div key={i} className="text-sm">

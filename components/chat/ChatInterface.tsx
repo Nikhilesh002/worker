@@ -10,7 +10,7 @@ interface Message {
   content: string
   role: "user" | "assistant"
   createdAt?: string
-  status?: "normal" | "error"
+  status?: "normal" | "error" | "loading"
   retryPrompt?: string
 }
 
@@ -47,6 +47,7 @@ export function ChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const currentChatId = useRef(chatId)
+  const pendingAssistantId = useRef<string | null>(null)
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -72,10 +73,19 @@ export function ChatInterface({
     setStreamedContent("")
     setToolCalls([])
 
+    const assistantLoadingId = `loading-${Date.now()}`
+    pendingAssistantId.current = assistantLoadingId
+
     // Optimistic UI
     setMessages((prev) => [
       ...prev,
       { id: `temp-${Date.now()}`, content: userMessage, role: "user" },
+      {
+        id: assistantLoadingId,
+        content: "Thinking...",
+        role: "assistant",
+        status: "loading",
+      },
     ])
 
     try {
@@ -125,6 +135,12 @@ export function ChatInterface({
               break
 
             case "token":
+              if (pendingAssistantId.current) {
+                setMessages((prev) =>
+                  prev.filter((msg) => msg.id !== pendingAssistantId.current),
+                )
+                pendingAssistantId.current = null
+              }
               accumulatedContent += data.content
               setStreamedContent(accumulatedContent)
               break
@@ -154,6 +170,12 @@ export function ChatInterface({
               break
 
             case "done":
+              if (pendingAssistantId.current) {
+                setMessages((prev) =>
+                  prev.filter((msg) => msg.id !== pendingAssistantId.current),
+                )
+                pendingAssistantId.current = null
+              }
               if (accumulatedContent.trim()) {
                 setMessages((prev) => [
                   ...prev,
@@ -172,6 +194,12 @@ export function ChatInterface({
               console.error("Stream error:", data.message)
               setStreamedContent("")
               setToolCalls([])
+              if (pendingAssistantId.current) {
+                setMessages((prev) =>
+                  prev.filter((msg) => msg.id !== pendingAssistantId.current),
+                )
+                pendingAssistantId.current = null
+              }
               setMessages((prev) => [
                 ...prev,
                 {
@@ -190,6 +218,12 @@ export function ChatInterface({
       console.error("Failed to send message:", error)
       setStreamedContent("")
       setToolCalls([])
+      if (pendingAssistantId.current) {
+        setMessages((prev) =>
+          prev.filter((msg) => msg.id !== pendingAssistantId.current),
+        )
+        pendingAssistantId.current = null
+      }
       setMessages((prev) => [
         ...prev,
         {

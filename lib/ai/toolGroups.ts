@@ -14,7 +14,6 @@ const TOOL_GROUPS: Record<ToolGroup, Set<string>> = {
     "crypto_price",
     "stock_price",
     "youtube_search",
-    "place_search",
   ]),
   utility: new Set([
     "calculator",
@@ -62,7 +61,7 @@ function getDefaultGroups(route: RouteDecision): ToolGroup[] {
 
   const groups: ToolGroup[] = ["utility"]
 
-  if (route.needsRetrieval) {
+  if (route.needsRetrieval && route.domain !== "location") {
     groups.push("search")
   }
 

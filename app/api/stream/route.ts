@@ -85,6 +85,15 @@ export async function POST(req: Request) {
         let fullResponse = ""
         const storedParts: string[] = []
         let currentText = ""
+        let pendingStreamText = ""
+
+        const flushPendingStreamText = () => {
+          const text = pendingStreamText.trimEnd()
+          if (text) {
+            send({ type: "token", content: text })
+          }
+          pendingStreamText = ""
+        }
 
         for await (const event of streamAgent(
           langchainMessages,
@@ -92,11 +101,21 @@ export async function POST(req: Request) {
         )) {
           switch (event.type) {
             case "token":
-              currentText += event.content
               fullResponse += event.content
-              send(event)
+              currentText += event.content
+              pendingStreamText += event.content
+
+              const shouldFlush =
+                pendingStreamText.length >= 24 ||
+                /[\s\n][^\s]*$/.test(pendingStreamText) ||
+                /[.!?]\s*$/.test(pendingStreamText)
+
+              if (shouldFlush) {
+                flushPendingStreamText()
+              }
               break
             case "tool_start":
+              flushPendingStreamText()
               if (currentText) {
                 storedParts.push(currentText)
                 currentText = ""
@@ -107,11 +126,14 @@ export async function POST(req: Request) {
               send(event)
               break
             case "tool_end":
+              flushPendingStreamText()
               storedParts.push(`${event.output}\n<<<END_TOOL_CALL>>>`)
               send(event)
               break
           }
         }
+
+        flushPendingStreamText()
 
         if (currentText) {
           storedParts.push(currentText)

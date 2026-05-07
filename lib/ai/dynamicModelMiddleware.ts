@@ -64,6 +64,9 @@ Definitions:
   - location: maps, places, weather, addresses, geolocation
   - media: video, movies, books, news, entertainment, finance/markets
 
+Important routing preference:
+- If the request is about weather, forecasts, temperature, humidity, or conditions for a place, classify it as domain="location" and prefer the weather/location tools instead of web search.
+
 Prefer the most capable tier only when the semantic difficulty actually warrants it.`
 
 const ROUTER_HISTORY_LIMIT = 14
