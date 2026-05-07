@@ -1,4 +1,4 @@
-import { getModel } from "../groq"
+import { createQwenModel } from "../groq"
 import { retry } from "@/lib/utils"
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
 
@@ -38,7 +38,7 @@ export async function summarizeMessages({
 
   const response = await retry(
     () =>
-      getModel().invoke([
+      createQwenModel().invoke([
         new SystemMessage(SUMMARIZE_PROMPT),
         new HumanMessage(input),
       ]),
