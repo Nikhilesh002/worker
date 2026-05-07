@@ -1,9 +1,21 @@
 import { ChatGroq } from "@langchain/groq"
 import { groqApiKeyManager } from "./groqApiKeyManager"
 
-export function createQwenModel() {
-  return new ChatGroq({
-    apiKey: groqApiKeyManager.getNextApiKey(),
+function createGroqModel(options: {
+  model: string
+  temperature: number
+  maxTokens: number
+  streaming: boolean
+}) {
+  const apiKey = groqApiKeyManager.getNextApiKey()
+  return {
+    apiKey,
+    model: new ChatGroq({ apiKey, ...options }),
+  }
+}
+
+export function createQwenModelWithKey() {
+  return createGroqModel({
     model: "qwen/qwen3-32b",
     temperature: 0.7,
     maxTokens: 4096,
@@ -11,14 +23,47 @@ export function createQwenModel() {
   })
 }
 
-export function createExpertModel() {
-  return new ChatGroq({
-    apiKey: groqApiKeyManager.getNextApiKey(),
-    model: "openai/gpt-oss-120b",
+export function createQwenModel() {
+  return createQwenModelWithKey().model
+}
+
+export function createMediumModelWithKey() {
+  return createGroqModel({
+    model: "openai/gpt-oss-20b",
     temperature: 0.3,
     maxTokens: 4096,
     streaming: true,
   })
+}
+
+export function createMediumModel() {
+  return createMediumModelWithKey().model
+}
+
+export function createRouterModelWithKey() {
+  return createGroqModel({
+    model: "qwen/qwen3-32b",
+    temperature: 0,
+    maxTokens: 1024,
+    streaming: false,
+  })
+}
+
+export function createExpertModel() {
+  return createExpertModelWithKey().model
+}
+
+export function createExpertModelWithKey() {
+  return createGroqModel({
+    model: "openai/gpt-oss-120b",
+    temperature: 0.2,
+    maxTokens: 4096,
+    streaming: true,
+  })
+}
+
+export function createRouterModel() {
+  return createRouterModelWithKey().model
 }
 
 export function getModel() {

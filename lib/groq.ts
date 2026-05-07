@@ -1,1 +1,7 @@
-export { createExpertModel, createQwenModel, getModel } from "./ai/groqModels"
+export {
+	createExpertModel,
+	createMediumModel,
+	createQwenModel,
+	createRouterModel,
+	getModel,
+} from "./ai/groqModels"

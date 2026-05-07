@@ -7,7 +7,7 @@ import {
 } from "@langchain/langgraph"
 import { AIMessage, SystemMessage, BaseMessage } from "@langchain/core/messages"
 import { ToolNode } from "@langchain/langgraph/prebuilt"
-import { createExpertModel } from "../groq"
+import { runDynamicModelCall } from "@/lib/ai/dynamicModelMiddleware"
 import { retry } from "@/lib/utils"
 import { allTools } from "./tools"
 import { SYSTEM_PROMPT } from "./systemPrompt"
@@ -47,7 +47,19 @@ async function callAgent(state: typeof AgentState.State) {
   const trimmedMessages = [new SystemMessage(systemContent), ...recentMessages]
 
   const response = await retry(
-    () => createExpertModel().bindTools(allTools).invoke(trimmedMessages),
+    () =>
+      runDynamicModelCall(
+        { messages: trimmedMessages, tools: allTools as any },
+        async (routedRequest) => {
+          const model = routedRequest.model as {
+            bindTools: (tools: typeof allTools) => {
+              invoke: (messages: BaseMessage[]) => Promise<AIMessage>
+            }
+          }
+
+          return model.bindTools(routedRequest.tools as any).invoke(routedRequest.messages)
+        },
+      ),
     2,
     400 + Math.random() * 600,
   )
