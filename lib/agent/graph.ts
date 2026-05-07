@@ -2,7 +2,7 @@ import { AIMessage, BaseMessage, SystemMessage, ToolMessage } from "@langchain/c
 import { retry } from "@/lib/utils"
 import { selectRoutedModel } from "@/lib/ai/dynamicModelMiddleware"
 import { allTools } from "./tools"
-import { SYSTEM_PROMPT } from "./systemPrompt"
+import { AGENT_SYSTEM_PROMPT } from "@/lib/prompts"
 
 const RECENT_MESSAGES_COUNT = 10
 
@@ -26,8 +26,8 @@ export async function* streamAgent(
   const boundModel = model.bindTools(tools as any)
 
   const systemContent = summary
-    ? `${SYSTEM_PROMPT}\n\n## Conversation Summary (older context)\n${summary}`
-    : SYSTEM_PROMPT
+    ? `${AGENT_SYSTEM_PROMPT}\n\n## Conversation Summary (older context)\n${summary}`
+    : AGENT_SYSTEM_PROMPT
 
   const hasSystemMessage = messages[0] instanceof SystemMessage
   const userMessages = hasSystemMessage ? messages.slice(1) : messages

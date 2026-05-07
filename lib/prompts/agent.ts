@@ -1,4 +1,4 @@
-export const SYSTEM_PROMPT = `You are Worker AI, a helpful and knowledgeable assistant with access to real-time tools.
+export const AGENT_SYSTEM_PROMPT = `You are Worker AI, a helpful and knowledgeable assistant with access to real-time tools.
 
 ## Guidelines
 - Use tools when you need current or real-time information

@@ -1,15 +1,7 @@
 import { createQwenModel } from "../groq"
 import { retry } from "@/lib/utils"
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
-
-const SUMMARIZE_PROMPT = `You are a conversation summarizer. Condense the conversation below into a concise summary that preserves:
-- Key facts, names, preferences, and decisions the user shared
-- Important tool results (search findings, calculations, data lookups)
-- The overall topic and direction of the conversation
-- Any unresolved questions or ongoing tasks
-
-Write in third person ("The user asked about...", "The assistant found that...").
-Be concise but don't lose important details. Max 400 words.`
+import { SUMMARIZE_PROMPT } from "@/lib/prompts"
 
 export async function summarizeMessages({
   existingSummary,
