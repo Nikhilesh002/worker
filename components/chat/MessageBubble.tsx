@@ -10,8 +10,10 @@ interface MessageBubbleProps {
     id: string
     content: string
     role: "user" | "assistant"
+    status?: "normal" | "error"
   }
   isStreaming?: boolean
+  onRetry?: () => void
 }
 
 function parseContent(content: string) {
@@ -131,11 +133,12 @@ function MarkdownContent({ content }: { content: string }) {
   )
 }
 
-export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+export function MessageBubble({ message, isStreaming, onRetry }: MessageBubbleProps) {
   const isUser = message.role === "user"
   const parts = isUser
     ? [{ type: "text" as const, content: message.content }]
     : parseContent(message.content)
+  const isError = message.status === "error"
 
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -149,7 +152,9 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
         className={`max-w-[80%] rounded-2xl px-4 py-3 ${
           isUser
             ? "bg-cyan-500/10 border border-cyan-500/20 text-zinc-100"
-            : "bg-white/[0.03] border border-white/[0.06] text-zinc-200"
+            : isError
+              ? "bg-red-500/10 border border-red-500/20 text-zinc-100"
+              : "bg-white/[0.03] border border-white/[0.06] text-zinc-200"
         }`}
       >
         {parts.map((part, i) =>
@@ -182,6 +187,17 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
 
         {isStreaming && (
           <span className="inline-block w-1.5 h-4 bg-cyan-400 animate-pulse ml-0.5 rounded-sm" />
+        )}
+
+        {isError && onRetry && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={onRetry}
+              className="px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-500/20 text-xs font-medium text-red-200 hover:bg-red-500/25 transition-colors cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
         )}
       </div>
 

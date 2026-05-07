@@ -10,6 +10,8 @@ interface Message {
   content: string
   role: "user" | "assistant"
   createdAt?: string
+  status?: "normal" | "error"
+  retryPrompt?: string
 }
 
 interface ToolCall {
@@ -168,12 +170,16 @@ export function ChatInterface({
 
             case "error":
               console.error("Stream error:", data.message)
+              setStreamedContent("")
+              setToolCalls([])
               setMessages((prev) => [
                 ...prev,
                 {
                   id: `err-${Date.now()}`,
                   content: `Error: ${data.message}`,
                   role: "assistant",
+                  status: "error",
+                  retryPrompt: userMessage,
                 },
               ])
               break
@@ -182,12 +188,16 @@ export function ChatInterface({
       }
     } catch (error) {
       console.error("Failed to send message:", error)
+      setStreamedContent("")
+      setToolCalls([])
       setMessages((prev) => [
         ...prev,
         {
           id: `err-${Date.now()}`,
           content: "Failed to get a response. Please try again.",
           role: "assistant",
+          status: "error",
+          retryPrompt: userMessage,
         },
       ])
     } finally {
@@ -231,7 +241,15 @@ export function ChatInterface({
         ) : (
           <div className="max-w-3xl mx-auto p-4 space-y-4 pb-4">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                onRetry={
+                  msg.status === "error" && msg.retryPrompt
+                    ? () => handleSend(msg.retryPrompt)
+                    : undefined
+                }
+              />
             ))}
 
             {isStreaming && (
