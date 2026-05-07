@@ -42,9 +42,9 @@ export function createMediumModel() {
 
 export function createRouterModelWithKey() {
   return createGroqModel({
-    model: "qwen/qwen3-32b",
+    model: "openai/gpt-oss-20b",
     temperature: 0,
-    maxTokens: 1024,
+    maxTokens: 256,
     streaming: false,
   })
 }

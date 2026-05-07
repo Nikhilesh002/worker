@@ -310,20 +310,7 @@ export function ChatInterface({
                     }}
                     isStreaming
                   />
-                ) : (
-                  toolCalls.length === 0 && (
-                    <div className="flex gap-3 items-center">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center shrink-0">
-                        <Sparkles className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                        <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                        <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:300ms]" />
-                      </div>
-                    </div>
-                  )
-                )}
+                ) : null}
               </div>
             )}
 
