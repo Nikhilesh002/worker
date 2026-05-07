@@ -7,13 +7,6 @@ const TOOL_GROUPS: Record<ToolGroup, Set<string>> = {
     "web_search",
     "wikipedia",
     "read_webpage",
-    "news_search",
-    "github_search",
-    "book_search",
-    "movie_search",
-    "crypto_price",
-    "stock_price",
-    "youtube_search",
   ]),
   utility: new Set([
     "calculator",
@@ -21,41 +14,21 @@ const TOOL_GROUPS: Record<ToolGroup, Set<string>> = {
     "random_number",
     "text_stats",
     "encode_decode",
-    "translate",
-    "dictionary",
-    "convert_currency",
     "convert_units",
-    "country_info",
-    "ip_lookup",
   ]),
   coding: new Set([
     "calculator",
     "web_search",
     "read_webpage",
-    "github_search",
     "text_stats",
     "encode_decode",
-    "dictionary",
   ]),
-  location: new Set([
-    "get_weather",
-    "place_search",
-    "country_info",
-    "ip_lookup",
-    "convert_units",
-  ]),
-  media: new Set([
-    "youtube_search",
-    "news_search",
-    "movie_search",
-    "book_search",
-    "crypto_price",
-    "stock_price",
-  ]),
+  location: new Set(["convert_units"]),
+  media: new Set([]),
 }
 
 function getDefaultGroups(route: RouteDecision): ToolGroup[] {
-  if (!route.needsTools) {
+  if (!route.needsTools && route.domain !== "location") {
     return []
   }
 

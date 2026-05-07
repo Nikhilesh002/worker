@@ -570,12 +570,12 @@ export const randomNumber = tool(
     }
 
     if (type === "dice") {
-      const rolls = Array.from(
-        { length: count },
-        () => Math.floor(Math.random() * (max - 1)) + 1
+      const sides = Math.max(1, Math.floor(max))
+      const rolls = Array.from({ length: count }, () =>
+        Math.floor(Math.random() * sides) + 1
       )
       const total = rolls.reduce((a, b) => a + b, 0)
-      return `**Dice roll${count > 1 ? "s" : ""} (d${max}):** ${rolls.join(", ")}${count > 1 ? ` (total: ${total})` : ""}`
+      return `**Dice roll${count > 1 ? "s" : ""} (d${sides}):** ${rolls.join(", ")}${count > 1 ? ` (total: ${total})` : ""}`
     }
 
     const numbers = Array.from({ length: count }, () => {
@@ -1265,25 +1265,11 @@ export const placeSearch = tool(
 export const allTools = [
   webSearch,
   wikipedia,
-  getWeather,
   calculator,
   readWebpage,
   getDatetime,
-  translate,
-  dictionary,
-  convertCurrency,
   convertUnits,
-  countryInfo,
   randomNumber,
   textStats,
   encodeDecode,
-  ipLookup,
-  youtubeSearch,
-  newsSearch,
-  movieSearch,
-  cryptoPrice,
-  stockPrice,
-  githubSearch,
-  bookSearch,
-  placeSearch,
 ]

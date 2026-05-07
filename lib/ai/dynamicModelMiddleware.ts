@@ -65,7 +65,9 @@ Definitions:
   - media: video, movies, books, news, entertainment, finance/markets
 
 Important routing preference:
-- If the request is about weather, forecasts, temperature, humidity, or conditions for a place, classify it as domain="location" and prefer the weather/location tools instead of web search.
+- If the request is about weather, forecasts, temperature, humidity, or conditions for a place, classify it as domain="location" and set needsTools=true.
+- Treat phrasing such as "what's the weather in X", "how is weather in X", "weather in X right now", "forecast for X" as location intent.
+- For weather/location intents, keep the request in the location domain rather than routing it to web search.
 
 Prefer the most capable tier only when the semantic difficulty actually warrants it.`
 
