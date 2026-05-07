@@ -1,4 +1,5 @@
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
+import { auth } from "@clerk/nextjs/server"
+import { SignInButton } from "@clerk/nextjs"
 import { Bot, Search, Cloud, Calculator, Globe, Zap } from "lucide-react"
 import Link from "next/link"
 
@@ -11,7 +12,9 @@ const tools = [
   { icon: Zap, label: "Real-time" },
 ]
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { userId } = await auth()
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-zinc-950">
       <div className="max-w-2xl text-center space-y-8">
@@ -47,16 +50,14 @@ export default function LandingPage() {
 
         {/* CTA */}
         <div className="flex flex-col items-center gap-4">
-          <SignedIn>
+          {userId ? (
             <Link
               href="/chat"
               className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 text-white font-medium text-lg hover:opacity-90 transition-opacity"
             >
               Open Chat
             </Link>
-          </SignedIn>
-
-          <SignedOut>
+          ) : (
             <SignInButton
               mode="modal"
               fallbackRedirectUrl="/chat"
@@ -66,7 +67,7 @@ export default function LandingPage() {
                 Get Started
               </button>
             </SignInButton>
-          </SignedOut>
+          )}
         </div>
       </div>
     </div>

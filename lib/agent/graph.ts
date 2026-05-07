@@ -13,7 +13,7 @@ import { allTools } from "./tools"
 import { SYSTEM_PROMPT } from "./systemPrompt"
 
 const toolNode = new ToolNode(allTools)
-const toolNames = allTools.map((t) => t.name)
+const toolNames: string[] = allTools.map((t) => t.name)
 
 // Extend state to carry conversation summary
 const AgentState = Annotation.Root({

@@ -9,7 +9,7 @@ export function getModel() {
   const randomIndex = Math.floor(Math.random() * 100) % apiKeys.length
   return new ChatGroq({
     apiKey: apiKeys[randomIndex],
-    model: "openai/gpt-oss-20b", // Supports tool calling
+    model: "qwen/qwen3-32b", // must support tool calling
     temperature: 0.7,
     maxTokens: 4096,
     streaming: true,

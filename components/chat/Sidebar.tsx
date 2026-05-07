@@ -11,6 +11,16 @@ import {
   Sparkles,
 } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Chat {
   id: string
@@ -25,6 +35,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const [chats, setChats] = useState<Chat[]>([])
+  const [deleteChatId, setDeleteChatId] = useState<string | null>(null)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -54,17 +65,18 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     }
   }, [])
 
-  const handleDelete = async (e: React.MouseEvent, chatId: string) => {
-    e.stopPropagation()
+  const handleDelete = async (chatId: string) => {
     try {
       await fetch(`/api/chats/${chatId}`, { method: "DELETE" })
       setChats((prev) => prev.filter((c) => c.id !== chatId))
       if (pathname === `/chat/${chatId}`) {
         router.push("/chat")
       }
+      window.dispatchEvent(new Event("chat-deleted"))
     } catch (error) {
       console.error("Failed to delete chat:", error)
     }
+    setDeleteChatId(null)
   }
 
   const activeChatId = pathname.split("/chat/")[1]
@@ -118,9 +130,11 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
               </p>
             )}
             {chats.map((chat) => (
-              <button
+              <div
                 key={chat.id}
                 onClick={() => router.push(`/chat/${chat.id}`)}
+                role="button"
+                tabIndex={0}
                 className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left group transition-all cursor-pointer ${
                   activeChatId === chat.id
                     ? "bg-white/[0.06] text-zinc-100"
@@ -130,12 +144,16 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-50" />
                 <span className="truncate flex-1">{chat.title}</span>
                 <button
-                  onClick={(e) => handleDelete(e, chat.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDeleteChatId(chat.id)
+                  }}
                   className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all cursor-pointer"
+                  aria-label={`Delete ${chat.title}`}
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
-              </button>
+              </div>
             ))}
           </div>
 
@@ -152,6 +170,36 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={deleteChatId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteChatId(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the conversation and cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteChatId) {
+                  handleDelete(deleteChatId)
+                }
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
