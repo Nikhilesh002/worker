@@ -30,10 +30,10 @@ export function ToolCallDisplay({ toolCall }: ToolCallProps) {
   }
 
   return (
-    <div className="my-2 rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+    <div className="my-2 rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden max-w-full min-w-0">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/[0.04] transition-colors cursor-pointer"
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/[0.04] transition-colors cursor-pointer min-w-0"
       >
         {isRunning ? (
           <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
@@ -42,7 +42,9 @@ export function ToolCallDisplay({ toolCall }: ToolCallProps) {
         )}
 
         <span>{meta.icon}</span>
-        <span className="font-medium text-zinc-200">{meta.label}</span>
+        <span className="font-medium text-zinc-200 truncate max-w-[12rem] flex-1 min-w-0">
+          {meta.label}
+        </span>
 
         {isRunning && (
           <span className="text-amber-400/70 text-[11px] ml-1">
@@ -65,7 +67,7 @@ export function ToolCallDisplay({ toolCall }: ToolCallProps) {
             <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
               Input
             </div>
-            <pre className="text-xs bg-black/40 rounded-md p-2 overflow-x-auto text-cyan-300/90 font-mono">
+            <pre className="text-xs bg-black/40 rounded-md p-2 overflow-x-auto max-w-full text-cyan-300/90 font-mono whitespace-pre-wrap break-words">
               {typeof toolCall.input === "string"
                 ? toolCall.input
                 : JSON.stringify(toolCall.input, null, 2)}
@@ -77,7 +79,7 @@ export function ToolCallDisplay({ toolCall }: ToolCallProps) {
               <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
                 Output
               </div>
-              <pre className="text-xs bg-black/40 rounded-md p-2 overflow-x-auto text-emerald-300/90 font-mono max-h-48 overflow-y-auto">
+              <pre className="text-xs bg-black/40 rounded-md p-2 overflow-x-auto max-w-full text-emerald-300/90 font-mono max-h-48 overflow-y-auto whitespace-pre-wrap break-words">
                 {toolCall.output}
               </pre>
             </div>

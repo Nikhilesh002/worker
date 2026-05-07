@@ -34,13 +34,13 @@ export default function ChatLayout({
   }
 
   return (
-    <div className="h-screen bg-zinc-950">
+    <div className="h-screen bg-zinc-950 overflow-hidden">
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
       <main
-        className={`h-full transition-all duration-200 ${sidebarOpen ? "ml-72" : "ml-0"}`}
+        className={`h-full overflow-hidden transition-all duration-200 ${sidebarOpen ? "ml-72" : "ml-0"}`}
       >
         {children}
       </main>

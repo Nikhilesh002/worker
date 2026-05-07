@@ -55,12 +55,14 @@ function MarkdownContent({ content }: { content: string }) {
       remarkPlugins={[remarkGfm]}
       components={{
         p: ({ children }) => (
-          <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
+          <p className="mb-2 last:mb-0 leading-relaxed break-words">
+            {children}
+          </p>
         ),
         code: ({ className, children, ...props }) => {
           if (className) {
             return (
-              <code className={`${className} text-sm`} {...props}>
+              <code className={`${className} text-sm break-words`} {...props}>
                 {children}
               </code>
             )
@@ -75,7 +77,7 @@ function MarkdownContent({ content }: { content: string }) {
           )
         },
         pre: ({ children }) => (
-          <pre className="bg-black/40 rounded-lg p-3 overflow-x-auto border border-white/[0.06] my-2 text-sm">
+          <pre className="bg-black/40 rounded-lg p-3 overflow-x-auto max-w-full border border-white/[0.06] my-2 text-sm">
             {children}
           </pre>
         ),
@@ -105,12 +107,12 @@ function MarkdownContent({ content }: { content: string }) {
           <h3 className="text-base font-semibold mb-1 mt-2">{children}</h3>
         ),
         blockquote: ({ children }) => (
-          <blockquote className="border-l-2 border-cyan-500/40 pl-3 text-zinc-400 italic my-2">
+          <blockquote className="border-l-2 border-cyan-500/40 pl-3 text-zinc-400 italic my-2 break-words">
             {children}
           </blockquote>
         ),
         table: ({ children }) => (
-          <div className="overflow-x-auto my-2">
+          <div className="overflow-x-auto my-2 max-w-full">
             <table className="min-w-full border-collapse text-sm">
               {children}
             </table>
@@ -142,7 +144,7 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
   const isLoading = message.status === "loading"
 
   return (
-    <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`flex gap-3 min-w-0 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center shrink-0 mt-0.5">
           <Bot className="w-4 h-4 text-white" />
@@ -150,7 +152,7 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
       )}
 
       <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+        className={`w-fit max-w-[min(100%,42rem)] rounded-2xl px-4 py-3 overflow-hidden min-w-0 ${
           isUser
             ? "bg-cyan-500/10 border border-cyan-500/20 text-zinc-100"
             : isError
@@ -173,9 +175,9 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
 
         {parts.map((part, i) =>
           part.type === "text" ? (
-            <div key={i} className="text-sm">
+            <div key={i} className="text-sm min-w-0 max-w-full overflow-hidden">
               {isUser ? (
-                <p className="whitespace-pre-wrap">{part.content}</p>
+                <p className="whitespace-pre-wrap break-words">{part.content}</p>
               ) : (
                 <MarkdownContent content={part.content} />
               )}
