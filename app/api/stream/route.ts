@@ -6,8 +6,8 @@ import {
   AIMessage,
   SystemMessage,
 } from "@langchain/core/messages"
-import { SYSTEM_PROMPT } from "@/lib/agent/systemPrompt"
 import { summarizeMessages } from "@/lib/agent/summarize"
+import { AGENT_SYSTEM_PROMPT } from "@/lib/prompts"
 
 export const maxDuration = 60
 
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
   // Convert to LangChain messages
   const langchainMessages = [
-    new SystemMessage(SYSTEM_PROMPT),
+    new SystemMessage(AGENT_SYSTEM_PROMPT),
     ...history.map((msg) => {
       if (msg.role === "user") return new HumanMessage(msg.content)
       // Strip stored tool call markers for context
@@ -73,9 +73,28 @@ export async function POST(req: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (data: Record<string, unknown>) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+      let closed = false
+
+      const safeClose = () => {
+        if (closed) return
+        closed = true
+        try {
+          controller.close()
+        } catch {
+          // Ignore double-close / already-closed errors.
+        }
       }
+
+      const send = (data: Record<string, unknown>) => {
+        if (closed) return
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        } catch {
+          closed = true
+        }
+      }
+
+      req.signal.addEventListener("abort", safeClose, { once: true })
 
       try {
         if (!chatId) {
@@ -167,12 +186,15 @@ export async function POST(req: Request) {
         send({ type: "done" })
       } catch (error) {
         console.error("Stream error:", error)
-        send({
-          type: "error",
-          message: error instanceof Error ? error.message : "An error occurred",
-        })
+        if (!closed) {
+          send({
+            type: "error",
+            message:
+              error instanceof Error ? error.message : "An error occurred",
+          })
+        }
       } finally {
-        controller.close()
+        safeClose()
       }
     },
   })
