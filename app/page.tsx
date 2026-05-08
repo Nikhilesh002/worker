@@ -1,5 +1,4 @@
 import { auth } from "@clerk/nextjs/server"
-import { SignInButton } from "@clerk/nextjs"
 import { Bot, Search, Cloud, Calculator, Globe, Zap } from "lucide-react"
 import Link from "next/link"
 
@@ -58,15 +57,12 @@ export default async function LandingPage() {
               Open Chat
             </Link>
           ) : (
-            <SignInButton
-              mode="modal"
-              fallbackRedirectUrl="/chat"
-              forceRedirectUrl="/chat"
+            <Link
+              href="/sign-in"
+              className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 text-white font-medium text-lg hover:opacity-90 transition-opacity"
             >
-              <button className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 text-white font-medium text-lg hover:opacity-90 transition-opacity cursor-pointer">
-                Get Started
-              </button>
-            </SignInButton>
+              Get Started
+            </Link>
           )}
         </div>
       </div>

@@ -9,8 +9,9 @@ import {
   PanelLeftClose,
   PanelLeft,
   Sparkles,
+  LogOut,
 } from "lucide-react"
-import { UserButton } from "@clerk/nextjs"
+import { UserButton, useClerk } from "@clerk/nextjs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +39,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null)
   const router = useRouter()
   const pathname = usePathname()
+  const { signOut } = useClerk()
 
   const fetchChats = async () => {
     try {
@@ -167,6 +169,17 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
               />
               <span className="text-xs text-zinc-500">Account</span>
             </div>
+
+            <button
+              onClick={async () => {
+                await signOut()
+                router.push("/")
+              }}
+              className="mt-3 w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] text-sm text-zinc-300 hover:bg-white/[0.06] hover:text-zinc-100 transition-all cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              Log out
+            </button>
           </div>
         </div>
       </div>
