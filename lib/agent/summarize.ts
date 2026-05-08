@@ -2,13 +2,19 @@ import { createQwenModel } from "../groq"
 import { retry } from "@/lib/utils"
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
 import { SUMMARIZE_PROMPT } from "@/lib/prompts"
+import {
+  buildLangSmithConfig,
+  type LangSmithTraceContext,
+} from "@/lib/observability/langsmith"
 
 export async function summarizeMessages({
   existingSummary,
   messagePairs,
+  traceContext,
 }: {
   existingSummary: string | null
   messagePairs: { role: string; content: string }[]
+  traceContext?: LangSmithTraceContext
 }): Promise<string> {
   let input = ""
 
@@ -30,10 +36,10 @@ export async function summarizeMessages({
 
   const response = await retry(
     () =>
-      createQwenModel().invoke([
-        new SystemMessage(SUMMARIZE_PROMPT),
-        new HumanMessage(input),
-      ]),
+      createQwenModel().invoke(
+        [new SystemMessage(SUMMARIZE_PROMPT), new HumanMessage(input)],
+        buildLangSmithConfig(traceContext, "summarize") as any,
+      ),
     2,
     400 + Math.random() * 600
   )

@@ -8,6 +8,7 @@ import {
 } from "@langchain/core/messages"
 import { summarizeMessages } from "@/lib/agent/summarize"
 import { AGENT_SYSTEM_PROMPT } from "@/lib/prompts"
+import { type LangSmithTraceContext } from "@/lib/observability/langsmith"
 
 export const maxDuration = 60
 
@@ -21,6 +22,11 @@ export async function POST(req: Request) {
   }
 
   const { chatId, message } = await req.json()
+  const traceContext: LangSmithTraceContext = {
+    chatId,
+    userId,
+    messagePreview: message,
+  }
 
   let currentChatId = chatId
 
@@ -34,6 +40,8 @@ export async function POST(req: Request) {
     })
     currentChatId = chat.id
   }
+
+  traceContext.chatId = currentChatId
 
   // Store user message
   await prisma.message.create({
@@ -116,7 +124,8 @@ export async function POST(req: Request) {
 
         for await (const event of streamAgent(
           langchainMessages,
-          chat?.summary || undefined
+          chat?.summary || undefined,
+          traceContext,
         )) {
           switch (event.type) {
             case "token":
@@ -179,7 +188,8 @@ export async function POST(req: Request) {
             currentChatId,
             chat?.summary || null,
             history.map((m) => ({ role: m.role, content: m.content })),
-            summarizedUpTo
+            summarizedUpTo,
+            traceContext,
           )
         }
 
@@ -218,7 +228,8 @@ function triggerSummarization(
   chatId: string,
   existingSummary: string | null,
   allMessages: { role: string; content: string }[],
-  summarizedUpTo: number
+  summarizedUpTo: number,
+  traceContext?: LangSmithTraceContext,
 ) {
   // Summarize everything except the last few messages (those stay as raw context)
   const keepRaw = 6
@@ -227,7 +238,7 @@ function triggerSummarization(
 
   if (toSummarize.length < 4) return // Not enough new messages to bother
 
-  summarizeMessages({ existingSummary, messagePairs: toSummarize })
+  summarizeMessages({ existingSummary, messagePairs: toSummarize, traceContext })
     .then((summary) =>
       prisma.chat.update({
         where: { id: chatId },

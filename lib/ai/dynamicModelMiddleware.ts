@@ -10,6 +10,10 @@ import {
 } from "./groqModels"
 import { filterToolsByRoute } from "./toolGroups"
 import { ROUTER_SYSTEM_PROMPT } from "@/lib/prompts"
+import {
+  buildLangSmithConfig,
+  type LangSmithTraceContext,
+} from "@/lib/observability/langsmith"
 
 export const RouteSchema = z.object({
   complexity: z.enum(["simple", "medium", "complex"]),
@@ -40,12 +44,15 @@ export interface RoutedModelRequest {
   model?: any
 }
 
+export interface RoutedModelTraceContext extends LangSmithTraceContext {}
+
 export interface RoutedModelResult {
   route: RouteDecision
   tier: RoutedModelTier
   model: ReturnType<typeof createQwenModelWithKey>["model"]
   apiKey: string
   tools: Array<{ name: string } & Record<string, unknown>>
+  traceConfig: ReturnType<typeof buildLangSmithConfig>
 }
 
 const ROUTER_HISTORY_LIMIT = 8
@@ -109,7 +116,10 @@ function isRetryableModelError(error: unknown) {
   return err?.status === 429 || err?.status === 403 || code === "rate_limit_exceeded" || code === "model_permission_blocked_org"
 }
 
-async function classifyRoute(messages: BaseMessage[]): Promise<RouteDecision> {
+async function classifyRoute(
+  messages: BaseMessage[],
+  traceContext?: RoutedModelTraceContext,
+): Promise<RouteDecision> {
   const latestUserText = [...messages]
     .reverse()
     .find((message) => message.getType?.() === "human")
@@ -143,7 +153,7 @@ async function classifyRoute(messages: BaseMessage[]): Promise<RouteDecision> {
     const route = await router.invoke([
       new SystemMessage(ROUTER_SYSTEM_PROMPT),
       ...messages.slice(-ROUTER_HISTORY_LIMIT),
-    ])
+    ], buildLangSmithConfig({ ...traceContext, selectedTier: "router" }, "router-route") as any)
     return route
   } catch (error) {
     if (isRetryableModelError(error)) {
@@ -159,11 +169,26 @@ async function classifyRoute(messages: BaseMessage[]): Promise<RouteDecision> {
   }
 }
 
-export async function selectRoutedModel(request: RoutedModelRequest): Promise<RoutedModelResult> {
-  const route = await classifyRoute(request.messages)
+export async function selectRoutedModel(
+  request: RoutedModelRequest,
+  traceContext?: RoutedModelTraceContext,
+): Promise<RoutedModelResult> {
+  const route = await classifyRoute(request.messages, traceContext)
   const tier = getTierForRoute(route)
   const selected = createModelForTier(tier)
   const tools = filterTools(route, request.tools)
+  const traceConfig = buildLangSmithConfig(
+    {
+      ...traceContext,
+      routeDomain: route.domain,
+      routeComplexity: route.complexity,
+      routeNeedsTools: route.needsTools,
+      routeNeedsRetrieval: route.needsRetrieval,
+      selectedTier: tier,
+      toolNames: tools.map((tool) => tool.name),
+    },
+    "agent-turn",
+  )
 
   return {
     route,
@@ -171,6 +196,7 @@ export async function selectRoutedModel(request: RoutedModelRequest): Promise<Ro
     model: selected.model,
     apiKey: selected.apiKey,
     tools,
+    traceConfig,
   }
 }
 

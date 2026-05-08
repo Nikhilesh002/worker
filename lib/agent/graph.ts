@@ -3,6 +3,10 @@ import { retry } from "@/lib/utils"
 import { selectRoutedModel } from "@/lib/ai/dynamicModelMiddleware"
 import { allTools } from "./tools"
 import { AGENT_SYSTEM_PROMPT } from "@/lib/prompts"
+import {
+  buildLangSmithConfig,
+  type LangSmithTraceContext,
+} from "@/lib/observability/langsmith"
 
 const RECENT_MESSAGES_COUNT = 10
 
@@ -17,11 +21,12 @@ export type StreamEvent =
 export async function* streamAgent(
   messages: BaseMessage[],
   summary?: string,
+  traceContext?: LangSmithTraceContext,
 ): AsyncGenerator<StreamEvent> {
-  const { model, tools, route } = await selectRoutedModel({
+  const { model, tools, route, tier, traceConfig } = await selectRoutedModel({
     messages,
     tools: allTools as any,
-  })
+  }, traceContext)
 
   const boundModel = model.bindTools(tools as any)
 
@@ -47,7 +52,7 @@ export async function* streamAgent(
     let fullMessage: AIMessage | null = null
 
     const stream = await retry(
-      () => boundModel.stream(workingMessages),
+      () => boundModel.stream(workingMessages, traceConfig as any),
       2,
       400 + Math.random() * 600,
     )
@@ -95,7 +100,20 @@ export async function* streamAgent(
         input: toolCall.args,
       }
 
-      const output = await (tool as any).invoke(toolCall.args)
+      const output = await (tool as any).invoke(
+        toolCall.args,
+        buildLangSmithConfig(
+          {
+            ...traceContext,
+            routeDomain: route.domain,
+            routeComplexity: route.complexity,
+            routeNeedsTools: route.needsTools,
+            routeNeedsRetrieval: route.needsRetrieval,
+            toolNames: [toolCall.name],
+          },
+          `tool:${toolCall.name}`,
+        ) as any,
+      )
       const outputStr =
         typeof output === "string" ? output : JSON.stringify(output)
 
