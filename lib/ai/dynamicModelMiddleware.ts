@@ -146,6 +146,45 @@ async function classifyRoute(
     }
   }
 
+  if (
+    /\b(calculate|compute|solve|simplify|derivative|integral|what is \d[\d\s+\-*/^()]*|sqrt|factorial)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      complexity: "simple",
+      needsTools: true,
+      needsRetrieval: false,
+      domain: "math",
+    }
+  }
+
+  if (
+    /\b(what'?s? (the )?(date|time|day)|current (date|time)|today'?s? date|right now|what time is it)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      complexity: "simple",
+      needsTools: true,
+      needsRetrieval: false,
+      domain: "general",
+    }
+  }
+
+  if (
+    /\b(convert \d|how many (km|miles|kg|pounds|liters?|gallons?|celsius|fahrenheit)|in (km|miles|kg|lb|usd|eur|gbp|inr))\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      complexity: "simple",
+      needsTools: true,
+      needsRetrieval: false,
+      domain: "general",
+    }
+  }
+
   const { model, apiKey } = createRouterModelWithKey()
 
   try {
@@ -161,10 +200,10 @@ async function classifyRoute(
     }
 
     return {
-      complexity: "complex",
+      complexity: "medium",
       needsTools: true,
-      needsRetrieval: true,
-      domain: "other",
+      needsRetrieval: false,
+      domain: "general",
     }
   }
 }

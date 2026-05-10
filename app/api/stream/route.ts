@@ -33,6 +33,18 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       let closed = false
+      let aborted = false
+      let assistantStored = false
+      let currentChatId = chatId
+      let storedParts: string[] = []
+      let fullResponse = ""
+      let currentText = ""
+      let pendingStreamText = ""
+      let chat: {
+        summary: string | null
+        summarizedUpToIndex: number
+      } | null = null
+      let history: { role: string; content: string }[] = []
 
       const safeClose = () => {
         if (closed) return
@@ -47,24 +59,52 @@ export async function POST(req: Request) {
       const send = (data: Record<string, unknown>) => {
         if (closed) return
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+          )
         } catch {
           closed = true
         }
       }
 
-      req.signal.addEventListener("abort", safeClose, { once: true })
+      const handleAbort = () => {
+        aborted = true
+        safeClose()
+      }
+      req.signal.addEventListener("abort", handleAbort, { once: true })
+
+      const pingInterval = setInterval(() => {
+        send({ type: "ping" })
+      }, 15000)
+
+      const buildStoredContent = () => {
+        const parts: string[] = []
+        if (storedParts.length) parts.push(...storedParts)
+        if (currentText) parts.push(currentText)
+        const candidate = parts.length > 0 ? parts.join("\n") : fullResponse
+        return candidate || ""
+      }
+
+      const persistAssistantMessage = async () => {
+        if (assistantStored) return
+        if (!currentChatId) return
+        const content = buildStoredContent()
+        if (!content.trim()) return
+        try {
+          await prisma.message.create({
+            data: {
+              chatId: currentChatId,
+              content,
+              role: "assistant",
+            },
+          })
+          assistantStored = true
+        } catch (error) {
+          console.error("Failed to store assistant message:", error)
+        }
+      }
 
       try {
-        let currentChatId = chatId
-        let chat:
-          | {
-              summary: string | null
-              summarizedUpToIndex: number
-            }
-          | null = null
-        let history: { role: string; content: string }[] = []
-
         if (!currentChatId) {
           try {
             const createdChat = await prisma.chat.create({
@@ -126,11 +166,6 @@ export async function POST(req: Request) {
           }),
         ]
 
-        let fullResponse = ""
-        const storedParts: string[] = []
-        let currentText = ""
-        let pendingStreamText = ""
-
         const flushPendingStreamText = () => {
           const text = pendingStreamText.trimEnd()
           if (text) {
@@ -142,8 +177,11 @@ export async function POST(req: Request) {
         for await (const event of streamAgent(
           langchainMessages,
           chat?.summary || undefined,
-          traceContext,
+          traceContext
         )) {
+          if (aborted) {
+            break
+          }
           switch (event.type) {
             case "token":
               fullResponse += event.content
@@ -184,22 +222,7 @@ export async function POST(req: Request) {
           storedParts.push(currentText)
         }
 
-        const storedContent =
-          storedParts.length > 0 ? storedParts.join("\n") : fullResponse
-
-        if (storedContent.trim()) {
-          try {
-            await prisma.message.create({
-              data: {
-                chatId: currentChatId,
-                content: storedContent,
-                role: "assistant",
-              },
-            })
-          } catch (error) {
-            console.error("Failed to store assistant message:", error)
-          }
-        }
+        await persistAssistantMessage()
 
         // Trigger async summarization if needed
         const summarizedUpTo = chat?.summarizedUpToIndex ?? 0
@@ -210,7 +233,7 @@ export async function POST(req: Request) {
             chat?.summary || null,
             history.map((m) => ({ role: m.role, content: m.content })),
             summarizedUpTo,
-            traceContext,
+            traceContext
           )
         }
 
@@ -225,6 +248,8 @@ export async function POST(req: Request) {
           })
         }
       } finally {
+        clearInterval(pingInterval)
+        await persistAssistantMessage()
         safeClose()
       }
     },
@@ -250,7 +275,7 @@ function triggerSummarization(
   existingSummary: string | null,
   allMessages: { role: string; content: string }[],
   summarizedUpTo: number,
-  traceContext?: LangSmithTraceContext,
+  traceContext?: LangSmithTraceContext
 ) {
   // Summarize everything except the last few messages (those stay as raw context)
   const keepRaw = 6
@@ -259,7 +284,11 @@ function triggerSummarization(
 
   if (toSummarize.length < 4) return // Not enough new messages to bother
 
-  summarizeMessages({ existingSummary, messagePairs: toSummarize, traceContext })
+  summarizeMessages({
+    existingSummary,
+    messagePairs: toSummarize,
+    traceContext,
+  })
     .then((summary) =>
       prisma.chat.update({
         where: { id: chatId },

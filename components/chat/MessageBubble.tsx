@@ -173,32 +173,38 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
           </div>
         ) : null}
 
-        {parts.map((part, i) =>
-          part.type === "text" ? (
-            <div key={i} className="text-sm min-w-0 max-w-full overflow-hidden">
-              {isUser ? (
-                <p className="whitespace-pre-wrap break-words">{part.content}</p>
-              ) : (
-                <MarkdownContent content={part.content} />
-              )}
-            </div>
-          ) : (
-            <ToolCallDisplay
-              key={i}
-              toolCall={{
-                name: part.name,
-                input: (() => {
-                  try {
-                    return JSON.parse(part.input)
-                  } catch {
-                    return part.input
-                  }
-                })(),
-                output: part.output,
-                status: "done",
-              }}
-            />
-          ),
+        {isStreaming && !isUser ? (
+          <div className="text-sm min-w-0 max-w-full overflow-hidden">
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          </div>
+        ) : (
+          parts.map((part, i) =>
+            part.type === "text" ? (
+              <div key={i} className="text-sm min-w-0 max-w-full overflow-hidden">
+                {isUser ? (
+                  <p className="whitespace-pre-wrap break-words">{part.content}</p>
+                ) : (
+                  <MarkdownContent content={part.content} />
+                )}
+              </div>
+            ) : (
+              <ToolCallDisplay
+                key={i}
+                toolCall={{
+                  name: part.name,
+                  input: (() => {
+                    try {
+                      return JSON.parse(part.input)
+                    } catch {
+                      return part.input
+                    }
+                  })(),
+                  output: part.output,
+                  status: "done",
+                }}
+              />
+            ),
+          )
         )}
 
         {isStreaming && (

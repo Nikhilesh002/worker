@@ -9,6 +9,7 @@ import {
 } from "@/lib/observability/langsmith"
 
 const RECENT_MESSAGES_COUNT = 10
+const MAX_TOOL_CALLS_PER_TURN = 3
 
 const toolNames = allTools.map((tool) => tool.name)
 const toolMap = new Map(allTools.map((tool) => [tool.name, tool]))
@@ -47,6 +48,9 @@ export async function* streamAgent(
   ]
 
   const maxIterations = route.needsTools ? 6 : 2
+
+  let toolCallsUsed = 0
+  const seenToolCalls = new Set<string>()
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     let fullMessage: AIMessage | null = null
@@ -94,6 +98,24 @@ export async function* streamAgent(
         continue
       }
 
+      const toolKey = `${toolCall.name}:${JSON.stringify(toolCall.args ?? {})}`
+      if (seenToolCalls.has(toolKey)) {
+        continue
+      }
+      seenToolCalls.add(toolKey)
+
+      if (toolCallsUsed >= MAX_TOOL_CALLS_PER_TURN) {
+        // Push a placeholder so the AIMessage tool_call has a matching ToolMessage,
+        // then let the next iteration synthesize with what we already have.
+        workingMessages.push(
+          new ToolMessage({
+            content: "Tool call limit reached. Please synthesize results from the tools already run.",
+            tool_call_id: toolCall.id || "tool-call",
+          }),
+        )
+        continue
+      }
+
       yield {
         type: "tool_start",
         name: toolCall.name,
@@ -118,6 +140,7 @@ export async function* streamAgent(
         typeof output === "string" ? output : JSON.stringify(output)
 
       yield { type: "tool_end", name: toolCall.name, output: outputStr }
+      toolCallsUsed += 1
 
       workingMessages.push(
         new ToolMessage({

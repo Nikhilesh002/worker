@@ -48,6 +48,7 @@ export function ChatInterface({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const currentChatId = useRef(chatId)
   const pendingAssistantId = useRef<string | null>(null)
+  const toolCallsRef = useRef<ToolCall[]>([])
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -72,6 +73,7 @@ export function ChatInterface({
     setIsStreaming(true)
     setStreamedContent("")
     setToolCalls([])
+    toolCallsRef.current = []
 
     const assistantLoadingId = `loading-${Date.now()}`
     pendingAssistantId.current = assistantLoadingId
@@ -104,6 +106,22 @@ export function ChatInterface({
       const decoder = new TextDecoder()
       let buffer = ""
       let accumulatedContent = ""
+      let didFinalize = false
+
+      const serializeToolCalls = (items: ToolCall[]) => {
+        const doneItems = items.filter((item) => item.status === "done")
+        if (!doneItems.length) return ""
+        return doneItems
+          .map((item) => {
+            const input =
+              typeof item.input === "string"
+                ? item.input
+                : JSON.stringify(item.input)
+            const output = item.output ?? ""
+            return `<<<TOOL_CALL:${item.name}>>>\n${input}\n${output}\n<<<END_TOOL_CALL>>>`
+          })
+          .join("\n")
+      }
 
       while (reader) {
         const { done, value } = await reader.read()
@@ -126,18 +144,17 @@ export function ChatInterface({
           switch (data.type) {
             case "chat_created":
               currentChatId.current = data.chatId
-              window.history.replaceState(
-                null,
-                "",
-                `/chat/${data.chatId}`,
-              )
+              window.history.replaceState(null, "", `/chat/${data.chatId}`)
               window.dispatchEvent(new CustomEvent("chat-created"))
+              break
+
+            case "ping":
               break
 
             case "token":
               if (pendingAssistantId.current) {
                 setMessages((prev) =>
-                  prev.filter((msg) => msg.id !== pendingAssistantId.current),
+                  prev.filter((msg) => msg.id !== pendingAssistantId.current)
                 )
                 pendingAssistantId.current = null
               }
@@ -146,17 +163,20 @@ export function ChatInterface({
               break
 
             case "tool_start":
-              setToolCalls((prev) => [
-                ...prev,
-                { name: data.name, input: data.input, status: "running" },
-              ])
+              setToolCalls((prev) => {
+                const next = [
+                  ...prev,
+                  { name: data.name, input: data.input, status: "running" },
+                ]
+                toolCallsRef.current = next
+                return next
+              })
               break
 
             case "tool_end":
               setToolCalls((prev) => {
                 const idx = prev.findIndex(
-                  (tc) =>
-                    tc.name === data.name && tc.status === "running",
+                  (tc) => tc.name === data.name && tc.status === "running"
                 )
                 if (idx === -1) return prev
                 const updated = [...prev]
@@ -165,6 +185,7 @@ export function ChatInterface({
                   output: data.output,
                   status: "done",
                 }
+                toolCallsRef.current = updated
                 return updated
               })
               break
@@ -172,22 +193,27 @@ export function ChatInterface({
             case "done":
               if (pendingAssistantId.current) {
                 setMessages((prev) =>
-                  prev.filter((msg) => msg.id !== pendingAssistantId.current),
+                  prev.filter((msg) => msg.id !== pendingAssistantId.current)
                 )
                 pendingAssistantId.current = null
               }
               if (accumulatedContent.trim()) {
+                const toolMarkers = serializeToolCalls(toolCallsRef.current)
+                const finalContent = toolMarkers
+                  ? `${accumulatedContent}\n${toolMarkers}`
+                  : accumulatedContent
                 setMessages((prev) => [
                   ...prev,
                   {
                     id: `msg-${Date.now()}`,
-                    content: accumulatedContent,
+                    content: finalContent,
                     role: "assistant",
                   },
                 ])
               }
               setStreamedContent("")
               setToolCalls([])
+              didFinalize = true
               break
 
             case "error":
@@ -196,7 +222,7 @@ export function ChatInterface({
               setToolCalls([])
               if (pendingAssistantId.current) {
                 setMessages((prev) =>
-                  prev.filter((msg) => msg.id !== pendingAssistantId.current),
+                  prev.filter((msg) => msg.id !== pendingAssistantId.current)
                 )
                 pendingAssistantId.current = null
               }
@@ -210,8 +236,46 @@ export function ChatInterface({
                   retryPrompt: userMessage,
                 },
               ])
+              didFinalize = true
               break
           }
+        }
+      }
+
+      if (!didFinalize) {
+        if (pendingAssistantId.current) {
+          setMessages((prev) =>
+            prev.filter((msg) => msg.id !== pendingAssistantId.current)
+          )
+          pendingAssistantId.current = null
+        }
+        setToolCalls([])
+        setStreamedContent("")
+
+        if (accumulatedContent.trim()) {
+          const toolMarkers = serializeToolCalls(toolCallsRef.current)
+          const finalContent = toolMarkers
+            ? `${accumulatedContent}\n${toolMarkers}`
+            : accumulatedContent
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}`,
+              content: finalContent,
+              role: "assistant",
+            },
+          ])
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `err-${Date.now()}`,
+              content: "Stream ended unexpectedly. Please try again.",
+              role: "assistant",
+              status: "error",
+              retryPrompt: userMessage,
+            },
+          ])
         }
       }
     } catch (error) {
@@ -220,7 +284,7 @@ export function ChatInterface({
       setToolCalls([])
       if (pendingAssistantId.current) {
         setMessages((prev) =>
-          prev.filter((msg) => msg.id !== pendingAssistantId.current),
+          prev.filter((msg) => msg.id !== pendingAssistantId.current)
         )
         pendingAssistantId.current = null
       }
@@ -242,29 +306,29 @@ export function ChatInterface({
   const isEmpty = messages.length === 0 && !isStreaming
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 overflow-x-hidden overflow-y-auto">
         {isEmpty ? (
-          <div className="flex items-center justify-center h-full px-4">
-            <div className="text-center max-w-2xl w-full">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-violet-500/20 border border-cyan-500/20 flex items-center justify-center mx-auto mb-5">
-                <Sparkles className="w-7 h-7 text-cyan-400" />
+          <div className="flex h-full items-center justify-center px-4">
+            <div className="w-full max-w-2xl text-center">
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/20 to-violet-500/20">
+                <Sparkles className="h-7 w-7 text-cyan-400" />
               </div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent mb-2">
+              <h2 className="mb-2 bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-2xl font-bold text-transparent">
                 Worker AI
               </h2>
-              <p className="text-zinc-500 text-sm mb-8">
+              <p className="mb-8 text-sm text-zinc-500">
                 AI assistant with web search, weather, Wikipedia, calculator
                 &amp; more
               </p>
 
-              <div className="flex flex-wrap gap-2 justify-center">
+              <div className="flex flex-wrap justify-center gap-2">
                 {SUGGESTIONS.map((suggestion, i) => (
                   <button
                     key={i}
                     onClick={() => handleSend(suggestion)}
-                    className="px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06] hover:border-cyan-500/20 transition-all cursor-pointer"
+                    className="cursor-pointer rounded-xl border border-white/[0.06] bg-white/[0.03] px-3.5 py-2 text-xs text-zinc-400 transition-all hover:border-cyan-500/20 hover:bg-white/[0.06] hover:text-zinc-200"
                   >
                     {suggestion}
                   </button>
@@ -273,7 +337,7 @@ export function ChatInterface({
             </div>
           </div>
         ) : (
-          <div className="max-w-2xl xl:max-w-3xl mx-auto w-full p-4 space-y-4 pb-4">
+          <div className="mx-auto w-full max-w-2xl space-y-4 p-4 pb-4 xl:max-w-3xl">
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
@@ -290,8 +354,8 @@ export function ChatInterface({
               <div className="space-y-3">
                 {toolCalls.length > 0 && (
                   <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center shrink-0 mt-0.5">
-                      <Sparkles className="w-4 h-4 text-white" />
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500">
+                      <Sparkles className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 space-y-2">
                       {toolCalls.map((tc, i) => (
@@ -320,9 +384,9 @@ export function ChatInterface({
       </div>
 
       {/* Input */}
-      <div className="border-t border-white/[0.04] bg-zinc-950/80 backdrop-blur-xl p-4">
-        <div className="max-w-2xl xl:max-w-3xl mx-auto w-full">
-          <div className="relative flex items-end gap-2 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-4 py-3 focus-within:border-cyan-500/30 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all overflow-hidden">
+      <div className="border-t border-white/[0.04] bg-zinc-950/80 p-4 backdrop-blur-xl">
+        <div className="mx-auto w-full max-w-2xl xl:max-w-3xl">
+          <div className="relative flex items-end gap-2 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 transition-all focus-within:border-cyan-500/30 focus-within:ring-1 focus-within:ring-cyan-500/20">
             <textarea
               ref={textareaRef}
               value={input}
@@ -334,21 +398,21 @@ export function ChatInterface({
                 }
               }}
               placeholder="Type a message..."
-              className="flex-1 min-w-0 bg-transparent resize-none text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none max-h-40 overflow-y-auto"
+              className="max-h-40 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none"
               rows={1}
               disabled={isStreaming}
             />
             <button
               onClick={() => handleSend()}
               disabled={!input.trim() || isStreaming}
-              className="shrink-0 w-8 h-8 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-500 flex items-center justify-center disabled:opacity-30 hover:opacity-90 transition-opacity cursor-pointer"
+              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-gradient-to-r from-cyan-500 to-violet-500 transition-opacity hover:opacity-90 disabled:opacity-30"
             >
-              <Send className="w-3.5 h-3.5 text-white" />
+              <Send className="h-3.5 w-3.5 text-white" />
             </button>
           </div>
-          <p className="text-[10px] text-zinc-600 text-center mt-2">
-            Powered by Groq + LangGraph &middot; Enter to send, Shift+Enter
-            for new line
+          <p className="mt-2 text-center text-[10px] text-zinc-600">
+            Powered by Groq + LangGraph &middot; Enter to send, Shift+Enter for
+            new line
           </p>
         </div>
       </div>

@@ -112,6 +112,20 @@ export const webSearch = tool(
   }
 )
 
+export const search = tool(
+  async ({ query }: { query: string }) => {
+    return cascadingWebSearch(query)
+  },
+  {
+    name: "search",
+    description:
+      "Alias for web_search. Search the web for current information, news, or facts.",
+    schema: z.object({
+      query: z.string().describe("The search query"),
+    }),
+  }
+)
+
 export const wikipedia = tool(
   async ({ query }: { query: string }) => {
     try {
@@ -280,7 +294,7 @@ export const readWebpage = tool(
   {
     name: "read_webpage",
     description:
-      "Fetch and extract text content from a URL. Good for reading articles, docs, blog posts.",
+      "Fetch and extract text from a URL. Only use this when the user explicitly provides a URL to read, or when web search snippets are clearly insufficient and deeper detail is required. Do NOT call this automatically after every web search.",
     schema: z.object({
       url: z
         .string()
