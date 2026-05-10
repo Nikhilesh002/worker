@@ -1,5 +1,4 @@
-import { createMiddleware } from "langchain"
-import { AIMessage, BaseMessage, SystemMessage } from "@langchain/core/messages"
+import { BaseMessage, SystemMessage } from "@langchain/core/messages"
 import { z } from "zod"
 import { groqApiKeyManager } from "./groqApiKeyManager"
 import {
@@ -8,7 +7,6 @@ import {
   createQwenModelWithKey,
   createRouterModelWithKey,
 } from "./groqModels"
-import { filterToolsByRoute } from "./toolGroups"
 import { ROUTER_SYSTEM_PROMPT } from "@/lib/prompts"
 import {
   buildLangSmithConfig,
@@ -76,13 +74,6 @@ function getTierForRoute(route: RouteDecision): RoutedModelTier {
   }
 
   return "primary"
-}
-
-function filterTools(
-  route: RouteDecision,
-  tools: RoutedModelRequest["tools"],
-) {
-  return filterToolsByRoute(route, tools as { name: string }[])
 }
 
 function createModelForTier(tier: RoutedModelTier) {
@@ -215,7 +206,7 @@ export async function selectRoutedModel(
   const route = await classifyRoute(request.messages, traceContext)
   const tier = getTierForRoute(route)
   const selected = createModelForTier(tier)
-  const tools = filterTools(route, request.tools)
+  const tools = request.tools as Array<{ name: string } & Record<string, unknown>>
   const traceConfig = buildLangSmithConfig(
     {
       ...traceContext,
@@ -240,48 +231,3 @@ export async function selectRoutedModel(
 }
 
 export { classifyRoute }
-
-export const dynamicModelMiddleware = createMiddleware({
-  name: "DynamicModelMiddleware",
-  wrapModelCall: async (request: any, handler: any) => {
-    const routed = await selectRoutedModel(request)
-
-    try {
-      return await handler({
-        ...request,
-        model: routed.model,
-        tools: routed.tools,
-      })
-    } catch (error) {
-      if (isRetryableModelError(error)) {
-        groqApiKeyManager.markKeyCooldown(routed.apiKey)
-      }
-
-      const fallbackTier = escalateTier(routed.tier)
-      if (!fallbackTier) {
-        throw error
-      }
-
-      const fallback = createModelForTier(fallbackTier)
-      try {
-        return await handler({
-          ...request,
-          model: fallback.model,
-          tools: fallbackTier === "expert" ? request.tools : routed.tools,
-        })
-      } catch (fallbackError) {
-        if (isRetryableModelError(fallbackError)) {
-          groqApiKeyManager.markKeyCooldown(fallback.apiKey)
-        }
-        throw fallbackError
-      }
-    }
-  },
-})
-
-export async function runDynamicModelCall<T extends AIMessage>(
-  request: RoutedModelRequest,
-  handler: (routedRequest: RoutedModelRequest) => Promise<T>,
-) {
-  return (dynamicModelMiddleware as any).wrapModelCall(request, handler) as Promise<T>
-}
