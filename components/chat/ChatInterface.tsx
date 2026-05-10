@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import { flushSync } from "react-dom"
 import { MessageBubble, MarkdownContent } from "./MessageBubble"
 import { ToolCallDisplay } from "./ToolCallDisplay"
 import { Send, Sparkles, Bot } from "lucide-react"
@@ -44,6 +45,7 @@ export function ChatInterface({
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamedContent, setStreamedContent] = useState("")
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([])
+  const [streamKey, setStreamKey] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const currentChatId = useRef(chatId)
@@ -182,6 +184,10 @@ export function ChatInterface({
               break
 
             case "done":
+              // Force a synchronous render with complete content + fresh key
+              // so MarkdownContent remounts and re-parses the full markdown
+              // correctly before we clear the streaming state.
+              flushSync(() => setStreamKey((k) => k + 1))
               finalizeMessage(accumulatedContent)
               didFinalize = true
               break
@@ -300,7 +306,7 @@ export function ChatInterface({
                   <div className="w-fit max-w-[min(100%,42rem)] xl:max-w-3xl min-w-0 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm text-zinc-200">
                     {streamedContent ? (
                       <div className="max-w-full min-w-0 overflow-hidden">
-                        <MarkdownContent content={streamedContent} />
+                        <MarkdownContent key={streamKey} content={streamedContent} />
                         <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-cyan-400" />
                       </div>
                     ) : (

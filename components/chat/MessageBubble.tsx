@@ -52,6 +52,13 @@ function parseContent(content: string) {
   return parts.length > 0 ? parts : [{ type: "text" as const, content }]
 }
 
+function preprocessMarkdown(content: string): string {
+  // GFM spec: a closing ** preceded by punctuation AND followed by a word character
+  // is not a valid right-flanking delimiter, so it won't render as bold.
+  // The model often outputs patterns like "**Tokyo (JST)**Monday" — fix by adding a space.
+  return content.replace(/([,.!?)\]>}»])\*\*([A-Za-z0-9À-￿])/g, "$1** $2")
+}
+
 export function MarkdownContent({ content }: { content: string }) {
   return (
     <ReactMarkdown
@@ -59,21 +66,25 @@ export function MarkdownContent({ content }: { content: string }) {
       rehypePlugins={[rehypeKatex]}
       components={{
         p: ({ children }) => (
-          <p className="mb-2 leading-relaxed break-words last:mb-0">
-            {children}
-          </p>
+          <p className="mb-3 leading-7 wrap-break-word last:mb-0">{children}</p>
+        ),
+        strong: ({ children }) => (
+          <strong className="font-semibold text-zinc-100">{children}</strong>
+        ),
+        em: ({ children }) => (
+          <em className="italic text-zinc-300">{children}</em>
         ),
         code: ({ className, children, ...props }) => {
           if (className) {
             return (
-              <code className={`${className} text-sm break-words`} {...props}>
+              <code className={`${className} text-sm break-all`} {...props}>
                 {children}
               </code>
             )
           }
           return (
             <code
-              className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-cyan-300"
+              className="rounded-md border border-white/6 bg-zinc-800 px-1.5 py-0.5 font-mono text-xs text-cyan-300"
               {...props}
             >
               {children}
@@ -81,14 +92,14 @@ export function MarkdownContent({ content }: { content: string }) {
           )
         },
         pre: ({ children }) => (
-          <pre className="my-2 max-w-full overflow-x-auto rounded-lg border border-white/[0.06] bg-black/40 p-3 text-sm">
+          <pre className="my-3 overflow-x-auto rounded-xl border border-white/8 bg-zinc-900/80 p-4 text-sm leading-relaxed">
             {children}
           </pre>
         ),
         a: ({ href, children }) => (
           <a
             href={href}
-            className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300"
+            className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300 transition-colors"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -96,45 +107,54 @@ export function MarkdownContent({ content }: { content: string }) {
           </a>
         ),
         ul: ({ children }) => (
-          <ul className="mb-2 list-disc space-y-1 pl-4">{children}</ul>
+          <ul className="mb-3 space-y-1.5 pl-5 list-disc marker:text-cyan-500/60">{children}</ul>
         ),
         ol: ({ children }) => (
-          <ol className="mb-2 list-decimal space-y-1 pl-4">{children}</ol>
+          <ol className="mb-3 space-y-1.5 pl-5 list-decimal marker:text-zinc-500">{children}</ol>
+        ),
+        li: ({ children }) => (
+          <li className="leading-relaxed text-zinc-300">{children}</li>
         ),
         h1: ({ children }) => (
-          <h1 className="mt-3 mb-2 text-xl font-bold">{children}</h1>
+          <h1 className="mt-5 mb-3 text-xl font-bold text-zinc-100 border-b border-white/6 pb-2">{children}</h1>
         ),
         h2: ({ children }) => (
-          <h2 className="mt-3 mb-2 text-lg font-bold">{children}</h2>
+          <h2 className="mt-4 mb-2.5 text-lg font-semibold text-zinc-100 border-b border-white/4 pb-1.5">{children}</h2>
         ),
         h3: ({ children }) => (
-          <h3 className="mt-2 mb-1 text-base font-semibold">{children}</h3>
+          <h3 className="mt-3 mb-2 text-base font-semibold text-zinc-200">{children}</h3>
         ),
         blockquote: ({ children }) => (
-          <blockquote className="my-2 border-l-2 border-cyan-500/40 pl-3 break-words text-zinc-400 italic">
+          <blockquote className="my-3 border-l-2 border-cyan-500/50 pl-4 wrap-break-word text-zinc-400 italic">
             {children}
           </blockquote>
         ),
+        hr: () => <hr className="my-4 border-white/8" />,
         table: ({ children }) => (
-          <div className="my-2 max-w-full overflow-x-auto">
-            <table className="min-w-full border-collapse text-sm">
-              {children}
-            </table>
+          <div className="my-3 overflow-x-auto rounded-xl border border-white/8">
+            <table className="min-w-full border-collapse text-sm">{children}</table>
           </div>
         ),
+        thead: ({ children }) => (
+          <thead className="bg-white/4">{children}</thead>
+        ),
+        tbody: ({ children }) => (
+          <tbody className="divide-y divide-white/4">{children}</tbody>
+        ),
         th: ({ children }) => (
-          <th className="border border-white/10 bg-white/[0.04] px-3 py-1.5 text-left font-medium text-zinc-300">
+          <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400 border-b border-white/8">
             {children}
           </th>
         ),
         td: ({ children }) => (
-          <td className="border border-white/10 px-3 py-1.5 text-zinc-300">
-            {children}
-          </td>
+          <td className="px-4 py-2.5 text-zinc-300 whitespace-normal">{children}</td>
+        ),
+        tr: ({ children }) => (
+          <tr className="hover:bg-white/2 transition-colors">{children}</tr>
         ),
       }}
     >
-      {content}
+      {preprocessMarkdown(content)}
     </ReactMarkdown>
   )
 }
@@ -168,8 +188,8 @@ export function MessageBubble({
             : isError
               ? "border border-red-500/20 bg-red-500/10 text-zinc-100"
               : isLoading
-                ? "border border-white/[0.06] bg-white/[0.03] text-zinc-200"
-                : "border border-white/[0.06] bg-white/[0.03] text-zinc-200"
+                ? "border border-white/6 bg-white/3 text-zinc-200"
+                : "border border-white/6 bg-white/3 text-zinc-200"
         }`}
       >
         {isLoading ? (
@@ -195,7 +215,7 @@ export function MessageBubble({
                 className="max-w-full min-w-0 overflow-hidden text-sm"
               >
                 {isUser ? (
-                  <p className="break-words whitespace-pre-wrap">
+                  <p className="wrap-break-word whitespace-pre-wrap">
                     {part.content}
                   </p>
                 ) : (
@@ -239,7 +259,7 @@ export function MessageBubble({
       </div>
 
       {isUser && (
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.06] bg-zinc-800">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/6 bg-zinc-800">
           <User className="h-4 w-4 text-zinc-400" />
         </div>
       )}

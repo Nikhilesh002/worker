@@ -14,6 +14,7 @@ import {
 } from "@/lib/observability/langsmith"
 
 const RECENT_MESSAGES_COUNT = 10
+const MAX_TOOLS_PER_ITERATION = 3
 
 const toolNames = allTools.map((tool) => tool.name)
 const toolMap = new Map(allTools.map((tool) => [tool.name, tool]))
@@ -94,6 +95,7 @@ export async function* streamAgent(
       break
     }
 
+    let toolsThisIteration = 0
     for (const toolCall of toolCalls) {
       if (!toolNames.includes(toolCall.name as never)) {
         continue
@@ -109,6 +111,17 @@ export async function* streamAgent(
         continue
       }
       seenToolCalls.add(toolKey)
+
+      if (toolsThisIteration >= MAX_TOOLS_PER_ITERATION) {
+        workingMessages.push(
+          new ToolMessage({
+            content: "Tool limit reached. Synthesize from results already gathered.",
+            tool_call_id: toolCall.id || "tool-call",
+          })
+        )
+        continue
+      }
+      toolsThisIteration++
 
       yield {
         type: "tool_start",
