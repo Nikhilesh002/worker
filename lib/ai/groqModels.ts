@@ -16,10 +16,9 @@ function createGroqModel(options: {
 
 export function createQwenModelWithKey() {
   return createGroqModel({
-    model: "openai/gpt-oss-20b",
-    // model: "qwen/qwen3-32b",
+    model: "qwen/qwen3-32b",
     temperature: 0.7,
-    maxTokens: 4096,
+    maxTokens: 2048,
     streaming: true,
   })
 }
@@ -32,7 +31,7 @@ export function createMediumModelWithKey() {
   return createGroqModel({
     model: "openai/gpt-oss-20b",
     temperature: 0.3,
-    maxTokens: 4096,
+    maxTokens: 2048,
     streaming: true,
   })
 }
@@ -43,7 +42,7 @@ export function createMediumModel() {
 
 export function createRouterModelWithKey() {
   return createGroqModel({
-    model: "openai/gpt-oss-20b",
+    model: "llama-3.1-8b-instant",
     temperature: 0,
     maxTokens: 256,
     streaming: false,

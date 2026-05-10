@@ -53,8 +53,6 @@ export interface RoutedModelResult {
   traceConfig: ReturnType<typeof buildLangSmithConfig>
 }
 
-const ROUTER_HISTORY_LIMIT = 8
-
 function getTierForRoute(route: RouteDecision): RoutedModelTier {
   if (
     route.complexity === "complex" ||
@@ -88,12 +86,6 @@ function createModelForTier(tier: RoutedModelTier) {
       return createQwenModelWithKey()
     }
   }
-}
-
-function escalateTier(tier: RoutedModelTier): RoutedModelTier | null {
-  if (tier === "primary") return "medium"
-  if (tier === "medium") return "expert"
-  return null
 }
 
 function isRetryableModelError(error: unknown) {
@@ -176,13 +168,39 @@ async function classifyRoute(
     }
   }
 
+  if (
+    /\b(roll|toss|flip)\b.*\b(dice?|coin|d\d+)\b|\broll a d\d+\b|\brandom (number|integer)\b|\bgenerate.*(random|number)\b/i.test(
+      text,
+    )
+  ) {
+    return {
+      complexity: "simple",
+      needsTools: true,
+      needsRetrieval: false,
+      domain: "general",
+    }
+  }
+
+  // Any "time in [city/country]" query → get_datetime, no retrieval needed
+  if (
+    /\b(time|clock)\b.{0,20}\b(in|at|for)\b|\btime zone\b|\bwhat'?s? the time\b/i.test(text)
+  ) {
+    return {
+      complexity: "simple",
+      needsTools: true,
+      needsRetrieval: false,
+      domain: "general",
+    }
+  }
+
   const { model, apiKey } = createRouterModelWithKey()
 
   try {
     const router = model.withStructuredOutput(RouteSchema)
+    const latestHumanMessage = [...messages].reverse().find((m) => m.getType?.() === "human")
     const route = await router.invoke([
       new SystemMessage(ROUTER_SYSTEM_PROMPT),
-      ...messages.slice(-ROUTER_HISTORY_LIMIT),
+      ...(latestHumanMessage ? [latestHumanMessage] : []),
     ], buildLangSmithConfig({ ...traceContext, selectedTier: "router" }, "router-route") as any)
     return route
   } catch (error) {

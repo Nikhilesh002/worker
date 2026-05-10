@@ -320,9 +320,8 @@ export const getDatetime = tool(
       }
 
       const formatted = now.toLocaleString("en-US", options)
-      const unix = Math.floor(now.getTime() / 1000)
 
-      return `**Current Date & Time**\n${formatted}\nUnix timestamp: ${unix}`
+      return `**Current Date & Time**\n${formatted}`
     } catch (error) {
       return `Could not get datetime: ${error instanceof Error ? error.message : "Invalid timezone"}`
     }
@@ -330,13 +329,15 @@ export const getDatetime = tool(
   {
     name: "get_datetime",
     description:
-      "Get the current date and time. Optionally specify a timezone.",
+      "Get the current date and time for any city, country, or timezone. " +
+      "Use this for ANY query about 'what time is it in [city/country]?' — never use web_search for time queries. " +
+      "Pass the IANA timezone string for the location (e.g. 'Europe/Paris' for Paris, 'America/New_York' for New York, 'Asia/Tokyo' for Tokyo, 'Asia/Kolkata' for India).",
     schema: z.object({
       timezone: z
         .string()
         .optional()
         .describe(
-          'IANA timezone (e.g., "America/New_York", "Asia/Tokyo"). Defaults to server timezone if omitted.'
+          'IANA timezone string (e.g. "Europe/Paris", "America/New_York", "Asia/Tokyo", "Asia/Kolkata"). Omit for server local time.'
         ),
     }),
   }

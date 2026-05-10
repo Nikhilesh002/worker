@@ -6,6 +6,7 @@ import {
 } from "@langchain/core/messages"
 import { retry } from "@/lib/utils"
 import { selectRoutedModel } from "@/lib/ai/dynamicModelMiddleware"
+import { createQwenModelWithKey } from "@/lib/ai/groqModels"
 import { allTools } from "./tools"
 import { AGENT_SYSTEM_PROMPT } from "@/lib/prompts"
 import {
@@ -15,6 +16,12 @@ import {
 
 const RECENT_MESSAGES_COUNT = 10
 const MAX_TOOLS_PER_ITERATION = 3
+
+// These tools produce self-contained formatted output — no synthesis LLM call needed.
+const SELF_CONTAINED_TOOLS = new Set([
+  "get_datetime", "calculator", "random_number", "convert_units",
+  "encode_decode", "convert_currency", "ip_lookup", "crypto_price",
+])
 
 const toolNames = allTools.map((tool) => tool.name)
 const toolMap = new Map(allTools.map((tool) => [tool.name, tool]))
@@ -96,6 +103,7 @@ export async function* streamAgent(
     }
 
     let toolsThisIteration = 0
+    let lastToolName: string | null = null
     for (const toolCall of toolCalls) {
       if (!toolNames.includes(toolCall.name as never)) {
         continue
@@ -147,6 +155,7 @@ export async function* streamAgent(
         typeof output === "string" ? output : JSON.stringify(output)
 
       yield { type: "tool_end", name: toolCall.name, output: outputStr }
+      lastToolName = toolCall.name
 
       workingMessages.push(
         new ToolMessage({
@@ -154,6 +163,30 @@ export async function* streamAgent(
           tool_call_id: toolCall.id || "tool-call",
         })
       )
+    }
+
+    // For self-contained tools, synthesize with the small fast model instead of raw output.
+    if (
+      toolsThisIteration === 1 &&
+      lastToolName &&
+      SELF_CONTAINED_TOOLS.has(lastToolName)
+    ) {
+      const { model: synthModel } = createQwenModelWithKey()
+      const synthStream = await retry(
+        () => synthModel.stream(workingMessages, traceConfig as any),
+        2,
+        400 + Math.random() * 600
+      )
+      for await (const chunk of synthStream) {
+        const content =
+          typeof (chunk as any).text === "string" && (chunk as any).text
+            ? (chunk as any).text
+            : typeof chunk.content === "string"
+              ? chunk.content
+              : ""
+        if (content) yield { type: "token", content }
+      }
+      break
     }
   }
 }
