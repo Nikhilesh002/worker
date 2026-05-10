@@ -28,55 +28,6 @@ export async function POST(req: Request) {
     messagePreview: message,
   }
 
-  let currentChatId = chatId
-
-  // Create chat if this is a new conversation
-  if (!currentChatId) {
-    const chat = await prisma.chat.create({
-      data: {
-        title: message.substring(0, 80),
-        userId,
-      },
-    })
-    currentChatId = chat.id
-  }
-
-  traceContext.chatId = currentChatId
-
-  // Store user message
-  await prisma.message.create({
-    data: {
-      chatId: currentChatId,
-      content: message,
-      role: "user",
-    },
-  })
-
-  // Load chat with summary + full history
-  const chat = await prisma.chat.findUnique({
-    where: { id: currentChatId },
-    select: { summary: true, summarizedUpToIndex: true },
-  })
-
-  const history = await prisma.message.findMany({
-    where: { chatId: currentChatId },
-    orderBy: { createdAt: "asc" },
-  })
-
-  // Convert to LangChain messages
-  const langchainMessages = [
-    new SystemMessage(AGENT_SYSTEM_PROMPT),
-    ...history.map((msg) => {
-      if (msg.role === "user") return new HumanMessage(msg.content)
-      // Strip stored tool call markers for context
-      const cleanContent = msg.content.replace(
-        /<<<TOOL_CALL:[\s\S]*?<<<END_TOOL_CALL>>>\n?/g,
-        ""
-      )
-      return new AIMessage(cleanContent)
-    }),
-  ]
-
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -105,9 +56,75 @@ export async function POST(req: Request) {
       req.signal.addEventListener("abort", safeClose, { once: true })
 
       try {
-        if (!chatId) {
-          send({ type: "chat_created", chatId: currentChatId })
+        let currentChatId = chatId
+        let chat:
+          | {
+              summary: string | null
+              summarizedUpToIndex: number
+            }
+          | null = null
+        let history: { role: string; content: string }[] = []
+
+        if (!currentChatId) {
+          try {
+            const createdChat = await prisma.chat.create({
+              data: {
+                title: message.substring(0, 80),
+                userId,
+              },
+            })
+            currentChatId = createdChat.id
+            traceContext.chatId = currentChatId
+            send({ type: "chat_created", chatId: currentChatId })
+          } catch (error) {
+            console.error("Failed to create chat:", error)
+            send({
+              type: "error",
+              message:
+                "Could not start a chat because the database is unavailable.",
+            })
+            return
+          }
+        } else {
+          traceContext.chatId = currentChatId
         }
+
+        try {
+          await prisma.message.create({
+            data: {
+              chatId: currentChatId,
+              content: message,
+              role: "user",
+            },
+          })
+
+          chat = await prisma.chat.findUnique({
+            where: { id: currentChatId },
+            select: { summary: true, summarizedUpToIndex: true },
+          })
+
+          history = await prisma.message.findMany({
+            where: { chatId: currentChatId },
+            orderBy: { createdAt: "asc" },
+            select: { role: true, content: true },
+          })
+        } catch (error) {
+          console.error("Failed to load chat history:", error)
+          history = [{ role: "user", content: message }]
+        }
+
+        const langchainMessages = [
+          new SystemMessage(AGENT_SYSTEM_PROMPT),
+          ...history.map((msg) => {
+            if (msg.role === "user") return new HumanMessage(msg.content)
+            // Strip stored tool call markers for context
+            const cleanContent = msg.content.replace(
+              /<<<TOOL_CALL:[\s\S]*?<<<END_TOOL_CALL>>>\n?/g,
+              ""
+            )
+            return new AIMessage(cleanContent)
+          }),
+        ]
 
         let fullResponse = ""
         const storedParts: string[] = []
@@ -171,13 +188,17 @@ export async function POST(req: Request) {
           storedParts.length > 0 ? storedParts.join("\n") : fullResponse
 
         if (storedContent.trim()) {
-          await prisma.message.create({
-            data: {
-              chatId: currentChatId,
-              content: storedContent,
-              role: "assistant",
-            },
-          })
+          try {
+            await prisma.message.create({
+              data: {
+                chatId: currentChatId,
+                content: storedContent,
+                role: "assistant",
+              },
+            })
+          } catch (error) {
+            console.error("Failed to store assistant message:", error)
+          }
         }
 
         // Trigger async summarization if needed
