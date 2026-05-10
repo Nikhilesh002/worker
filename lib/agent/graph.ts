@@ -1,4 +1,9 @@
-import { AIMessage, BaseMessage, SystemMessage, ToolMessage } from "@langchain/core/messages"
+import {
+  AIMessage,
+  BaseMessage,
+  SystemMessage,
+  ToolMessage,
+} from "@langchain/core/messages"
 import { retry } from "@/lib/utils"
 import { selectRoutedModel } from "@/lib/ai/dynamicModelMiddleware"
 import { allTools } from "./tools"
@@ -22,12 +27,15 @@ export type StreamEvent =
 export async function* streamAgent(
   messages: BaseMessage[],
   summary?: string,
-  traceContext?: LangSmithTraceContext,
+  traceContext?: LangSmithTraceContext
 ): AsyncGenerator<StreamEvent> {
-  const { model, tools, route, tier, traceConfig } = await selectRoutedModel({
-    messages,
-    tools: allTools as any,
-  }, traceContext)
+  const { model, tools, route, tier, traceConfig } = await selectRoutedModel(
+    {
+      messages,
+      tools: allTools as any,
+    },
+    traceContext
+  )
 
   const boundModel = model.bindTools(tools as any)
 
@@ -58,7 +66,7 @@ export async function* streamAgent(
     const stream = await retry(
       () => boundModel.stream(workingMessages, traceConfig as any),
       2,
-      400 + Math.random() * 600,
+      400 + Math.random() * 600
     )
 
     for await (const chunk of stream) {
@@ -109,9 +117,10 @@ export async function* streamAgent(
         // then let the next iteration synthesize with what we already have.
         workingMessages.push(
           new ToolMessage({
-            content: "Tool call limit reached. Please synthesize results from the tools already run.",
+            content:
+              "Tool call limit reached. Please synthesize results from the tools already run.",
             tool_call_id: toolCall.id || "tool-call",
-          }),
+          })
         )
         continue
       }
@@ -133,8 +142,8 @@ export async function* streamAgent(
             routeNeedsRetrieval: route.needsRetrieval,
             toolNames: [toolCall.name],
           },
-          `tool:${toolCall.name}`,
-        ) as any,
+          `tool:${toolCall.name}`
+        ) as any
       )
       const outputStr =
         typeof output === "string" ? output : JSON.stringify(output)
@@ -146,7 +155,7 @@ export async function* streamAgent(
         new ToolMessage({
           content: outputStr,
           tool_call_id: toolCall.id || "tool-call",
-        }),
+        })
       )
     }
   }

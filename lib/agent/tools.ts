@@ -585,8 +585,9 @@ export const randomNumber = tool(
 
     if (type === "dice") {
       const sides = Math.max(1, Math.floor(max))
-      const rolls = Array.from({ length: count }, () =>
-        Math.floor(Math.random() * sides) + 1
+      const rolls = Array.from(
+        { length: count },
+        () => Math.floor(Math.random() * sides) + 1
       )
       const total = rolls.reduce((a, b) => a + b, 0)
       return `**Dice roll${count > 1 ? "s" : ""} (d${sides}):** ${rolls.join(", ")}${count > 1 ? ` (total: ${total})` : ""}`

@@ -2,6 +2,9 @@
 
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
+import "katex/dist/katex.min.css"
 import { ToolCallDisplay } from "./ToolCallDisplay"
 import { User, Bot } from "lucide-react"
 
@@ -49,13 +52,14 @@ function parseContent(content: string) {
   return parts.length > 0 ? parts : [{ type: "text" as const, content }]
 }
 
-function MarkdownContent({ content }: { content: string }) {
+export function MarkdownContent({ content }: { content: string }) {
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
       components={{
         p: ({ children }) => (
-          <p className="mb-2 last:mb-0 leading-relaxed break-words">
+          <p className="mb-2 leading-relaxed break-words last:mb-0">
             {children}
           </p>
         ),
@@ -69,7 +73,7 @@ function MarkdownContent({ content }: { content: string }) {
           }
           return (
             <code
-              className="px-1.5 py-0.5 rounded bg-white/[0.06] text-cyan-300 text-xs font-mono"
+              className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-cyan-300"
               {...props}
             >
               {children}
@@ -77,14 +81,14 @@ function MarkdownContent({ content }: { content: string }) {
           )
         },
         pre: ({ children }) => (
-          <pre className="bg-black/40 rounded-lg p-3 overflow-x-auto max-w-full border border-white/[0.06] my-2 text-sm">
+          <pre className="my-2 max-w-full overflow-x-auto rounded-lg border border-white/[0.06] bg-black/40 p-3 text-sm">
             {children}
           </pre>
         ),
         a: ({ href, children }) => (
           <a
             href={href}
-            className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+            className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -92,34 +96,34 @@ function MarkdownContent({ content }: { content: string }) {
           </a>
         ),
         ul: ({ children }) => (
-          <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>
+          <ul className="mb-2 list-disc space-y-1 pl-4">{children}</ul>
         ),
         ol: ({ children }) => (
-          <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>
+          <ol className="mb-2 list-decimal space-y-1 pl-4">{children}</ol>
         ),
         h1: ({ children }) => (
-          <h1 className="text-xl font-bold mb-2 mt-3">{children}</h1>
+          <h1 className="mt-3 mb-2 text-xl font-bold">{children}</h1>
         ),
         h2: ({ children }) => (
-          <h2 className="text-lg font-bold mb-2 mt-3">{children}</h2>
+          <h2 className="mt-3 mb-2 text-lg font-bold">{children}</h2>
         ),
         h3: ({ children }) => (
-          <h3 className="text-base font-semibold mb-1 mt-2">{children}</h3>
+          <h3 className="mt-2 mb-1 text-base font-semibold">{children}</h3>
         ),
         blockquote: ({ children }) => (
-          <blockquote className="border-l-2 border-cyan-500/40 pl-3 text-zinc-400 italic my-2 break-words">
+          <blockquote className="my-2 border-l-2 border-cyan-500/40 pl-3 break-words text-zinc-400 italic">
             {children}
           </blockquote>
         ),
         table: ({ children }) => (
-          <div className="overflow-x-auto my-2 max-w-full">
+          <div className="my-2 max-w-full overflow-x-auto">
             <table className="min-w-full border-collapse text-sm">
               {children}
             </table>
           </div>
         ),
         th: ({ children }) => (
-          <th className="border border-white/10 px-3 py-1.5 bg-white/[0.04] text-left font-medium text-zinc-300">
+          <th className="border border-white/10 bg-white/[0.04] px-3 py-1.5 text-left font-medium text-zinc-300">
             {children}
           </th>
         ),
@@ -135,7 +139,11 @@ function MarkdownContent({ content }: { content: string }) {
   )
 }
 
-export function MessageBubble({ message, isStreaming, onRetry }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  isStreaming,
+  onRetry,
+}: MessageBubbleProps) {
   const isUser = message.role === "user"
   const parts = isUser
     ? [{ type: "text" as const, content: message.content }]
@@ -144,45 +152,52 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
   const isLoading = message.status === "loading"
 
   return (
-    <div className={`flex gap-3 min-w-0 ${isUser ? "justify-end" : "justify-start"}`}>
+    <div
+      className={`flex min-w-0 gap-3 ${isUser ? "justify-end" : "justify-start"}`}
+    >
       {!isUser && (
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center shrink-0 mt-0.5">
-          <Bot className="w-4 h-4 text-white" />
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500">
+          <Bot className="h-4 w-4 text-white" />
         </div>
       )}
 
       <div
-        className={`w-fit max-w-[min(100%,42rem)] rounded-2xl px-4 py-3 overflow-hidden min-w-0 ${
+        className={`w-fit max-w-[min(100%,42rem)] min-w-0 overflow-hidden rounded-2xl px-4 py-3 ${
           isUser
-            ? "bg-cyan-500/10 border border-cyan-500/20 text-zinc-100"
+            ? "border border-cyan-500/20 bg-cyan-500/10 text-zinc-100"
             : isError
-              ? "bg-red-500/10 border border-red-500/20 text-zinc-100"
+              ? "border border-red-500/20 bg-red-500/10 text-zinc-100"
               : isLoading
-                ? "bg-white/[0.03] border border-white/[0.06] text-zinc-200"
-              : "bg-white/[0.03] border border-white/[0.06] text-zinc-200"
+                ? "border border-white/[0.06] bg-white/[0.03] text-zinc-200"
+                : "border border-white/[0.06] bg-white/[0.03] text-zinc-200"
         }`}
       >
         {isLoading ? (
-          <div className="flex items-center gap-2 min-h-8">
+          <div className="flex min-h-8 items-center gap-2">
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:0ms]" />
-              <div className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce [animation-delay:150ms]" />
-              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:300ms]" />
+              <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400 [animation-delay:0ms]" />
+              <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
+              <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400 [animation-delay:300ms]" />
             </div>
             <span className="text-xs text-zinc-500">Thinking...</span>
           </div>
         ) : null}
 
         {isStreaming && !isUser ? (
-          <div className="text-sm min-w-0 max-w-full overflow-hidden">
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          <div className="max-w-full min-w-0 overflow-hidden text-sm">
+            <MarkdownContent content={message.content} />
           </div>
         ) : (
           parts.map((part, i) =>
             part.type === "text" ? (
-              <div key={i} className="text-sm min-w-0 max-w-full overflow-hidden">
+              <div
+                key={i}
+                className="max-w-full min-w-0 overflow-hidden text-sm"
+              >
                 {isUser ? (
-                  <p className="whitespace-pre-wrap break-words">{part.content}</p>
+                  <p className="break-words whitespace-pre-wrap">
+                    {part.content}
+                  </p>
                 ) : (
                   <MarkdownContent content={part.content} />
                 )}
@@ -203,19 +218,19 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
                   status: "done",
                 }}
               />
-            ),
+            )
           )
         )}
 
         {isStreaming && (
-          <span className="inline-block w-1.5 h-4 bg-cyan-400 animate-pulse ml-0.5 rounded-sm" />
+          <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-cyan-400" />
         )}
 
         {isError && onRetry && (
           <div className="mt-3 flex items-center gap-2">
             <button
               onClick={onRetry}
-              className="px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-500/20 text-xs font-medium text-red-200 hover:bg-red-500/25 transition-colors cursor-pointer"
+              className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-200 transition-colors hover:bg-red-500/25"
             >
               Retry
             </button>
@@ -224,8 +239,8 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
       </div>
 
       {isUser && (
-        <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-white/[0.06] flex items-center justify-center shrink-0 mt-0.5">
-          <User className="w-4 h-4 text-zinc-400" />
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.06] bg-zinc-800">
+          <User className="h-4 w-4 text-zinc-400" />
         </div>
       )}
     </div>

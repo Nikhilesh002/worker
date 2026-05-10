@@ -220,6 +220,7 @@ export async function POST(req: Request) {
 
         if (currentText) {
           storedParts.push(currentText)
+          currentText = "" // prevent buildStoredContent from adding it a second time
         }
 
         await persistAssistantMessage()

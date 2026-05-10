@@ -1,16 +1,16 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { MessageBubble } from "./MessageBubble"
+import { MessageBubble, MarkdownContent } from "./MessageBubble"
 import { ToolCallDisplay } from "./ToolCallDisplay"
-import { Send, Sparkles } from "lucide-react"
+import { Send, Sparkles, Bot } from "lucide-react"
 
 interface Message {
   id: string
   content: string
   role: "user" | "assistant"
   createdAt?: string
-  status?: "normal" | "error" | "loading"
+  status?: "normal" | "error"
   retryPrompt?: string
 }
 
@@ -47,7 +47,6 @@ export function ChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const currentChatId = useRef(chatId)
-  const pendingAssistantId = useRef<string | null>(null)
   const toolCallsRef = useRef<ToolCall[]>([])
 
   const scrollToBottom = useCallback(() => {
@@ -56,7 +55,6 @@ export function ChatInterface({
 
   useEffect(scrollToBottom, [messages, streamedContent, scrollToBottom])
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
@@ -75,19 +73,9 @@ export function ChatInterface({
     setToolCalls([])
     toolCallsRef.current = []
 
-    const assistantLoadingId = `loading-${Date.now()}`
-    pendingAssistantId.current = assistantLoadingId
-
-    // Optimistic UI
     setMessages((prev) => [
       ...prev,
       { id: `temp-${Date.now()}`, content: userMessage, role: "user" },
-      {
-        id: assistantLoadingId,
-        content: "Thinking...",
-        role: "assistant",
-        status: "loading",
-      },
     ])
 
     try {
@@ -123,6 +111,19 @@ export function ChatInterface({
           .join("\n")
       }
 
+      const finalizeMessage = (content: string) => {
+        const toolMarkers = serializeToolCalls(toolCallsRef.current)
+        const finalContent = [toolMarkers, content].filter(Boolean).join("\n")
+        if (finalContent.trim()) {
+          setMessages((prev) => [
+            ...prev,
+            { id: `msg-${Date.now()}`, content: finalContent, role: "assistant" },
+          ])
+        }
+        setStreamedContent("")
+        setToolCalls([])
+      }
+
       while (reader) {
         const { done, value } = await reader.read()
         if (done) break
@@ -152,12 +153,6 @@ export function ChatInterface({
               break
 
             case "token":
-              if (pendingAssistantId.current) {
-                setMessages((prev) =>
-                  prev.filter((msg) => msg.id !== pendingAssistantId.current)
-                )
-                pendingAssistantId.current = null
-              }
               accumulatedContent += data.content
               setStreamedContent(accumulatedContent)
               break
@@ -166,7 +161,7 @@ export function ChatInterface({
               setToolCalls((prev) => {
                 const next = [
                   ...prev,
-                  { name: data.name, input: data.input, status: "running" },
+                  { name: data.name, input: data.input, status: "running" as const },
                 ]
                 toolCallsRef.current = next
                 return next
@@ -180,52 +175,20 @@ export function ChatInterface({
                 )
                 if (idx === -1) return prev
                 const updated = [...prev]
-                updated[idx] = {
-                  ...updated[idx],
-                  output: data.output,
-                  status: "done",
-                }
+                updated[idx] = { ...updated[idx], output: data.output, status: "done" }
                 toolCallsRef.current = updated
                 return updated
               })
               break
 
             case "done":
-              if (pendingAssistantId.current) {
-                setMessages((prev) =>
-                  prev.filter((msg) => msg.id !== pendingAssistantId.current)
-                )
-                pendingAssistantId.current = null
-              }
-              if (accumulatedContent.trim()) {
-                const toolMarkers = serializeToolCalls(toolCallsRef.current)
-                const finalContent = toolMarkers
-                  ? `${accumulatedContent}\n${toolMarkers}`
-                  : accumulatedContent
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    id: `msg-${Date.now()}`,
-                    content: finalContent,
-                    role: "assistant",
-                  },
-                ])
-              }
-              setStreamedContent("")
-              setToolCalls([])
+              finalizeMessage(accumulatedContent)
               didFinalize = true
               break
 
             case "error":
-              console.error("Stream error:", data.message)
               setStreamedContent("")
               setToolCalls([])
-              if (pendingAssistantId.current) {
-                setMessages((prev) =>
-                  prev.filter((msg) => msg.id !== pendingAssistantId.current)
-                )
-                pendingAssistantId.current = null
-              }
               setMessages((prev) => [
                 ...prev,
                 {
@@ -243,29 +206,11 @@ export function ChatInterface({
       }
 
       if (!didFinalize) {
-        if (pendingAssistantId.current) {
-          setMessages((prev) =>
-            prev.filter((msg) => msg.id !== pendingAssistantId.current)
-          )
-          pendingAssistantId.current = null
-        }
-        setToolCalls([])
-        setStreamedContent("")
-
-        if (accumulatedContent.trim()) {
-          const toolMarkers = serializeToolCalls(toolCallsRef.current)
-          const finalContent = toolMarkers
-            ? `${accumulatedContent}\n${toolMarkers}`
-            : accumulatedContent
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `msg-${Date.now()}`,
-              content: finalContent,
-              role: "assistant",
-            },
-          ])
+        if (accumulatedContent.trim() || toolCallsRef.current.length > 0) {
+          finalizeMessage(accumulatedContent)
         } else {
+          setStreamedContent("")
+          setToolCalls([])
           setMessages((prev) => [
             ...prev,
             {
@@ -282,12 +227,6 @@ export function ChatInterface({
       console.error("Failed to send message:", error)
       setStreamedContent("")
       setToolCalls([])
-      if (pendingAssistantId.current) {
-        setMessages((prev) =>
-          prev.filter((msg) => msg.id !== pendingAssistantId.current)
-        )
-        pendingAssistantId.current = null
-      }
       setMessages((prev) => [
         ...prev,
         {
@@ -307,7 +246,6 @@ export function ChatInterface({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Messages */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto">
         {isEmpty ? (
           <div className="flex h-full items-center justify-center px-4">
@@ -322,7 +260,6 @@ export function ChatInterface({
                 AI assistant with web search, weather, Wikipedia, calculator
                 &amp; more
               </p>
-
               <div className="flex flex-wrap justify-center gap-2">
                 {SUGGESTIONS.map((suggestion, i) => (
                   <button
@@ -350,31 +287,31 @@ export function ChatInterface({
               />
             ))}
 
+            {/* Unified streaming indicator */}
             {isStreaming && (
-              <div className="space-y-3">
-                {toolCalls.length > 0 && (
-                  <div className="flex gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500">
-                      <Sparkles className="h-4 w-4 text-white" />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      {toolCalls.map((tc, i) => (
-                        <ToolCallDisplay key={i} toolCall={tc} />
-                      ))}
-                    </div>
+              <div className="flex min-w-0 gap-3">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500">
+                  <Bot className="h-4 w-4 text-white" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  {toolCalls.map((tc, i) => (
+                    <ToolCallDisplay key={i} toolCall={tc} />
+                  ))}
+                  <div className="w-fit max-w-[min(100%,42rem)] xl:max-w-3xl min-w-0 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm text-zinc-200">
+                    {streamedContent ? (
+                      <div className="max-w-full min-w-0 overflow-hidden">
+                        <MarkdownContent content={streamedContent} />
+                        <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-cyan-400" />
+                      </div>
+                    ) : (
+                      <div className="flex min-h-6 items-center gap-1.5">
+                        <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400 [animation-delay:0ms]" />
+                        <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
+                        <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400 [animation-delay:300ms]" />
+                      </div>
+                    )}
                   </div>
-                )}
-
-                {streamedContent ? (
-                  <MessageBubble
-                    message={{
-                      id: "streaming",
-                      content: streamedContent,
-                      role: "assistant",
-                    }}
-                    isStreaming
-                  />
-                ) : null}
+                </div>
               </div>
             )}
 
