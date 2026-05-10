@@ -1,12 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
 import "katex/dist/katex.min.css"
 import { ToolCallDisplay } from "./ToolCallDisplay"
-import { User, Bot } from "lucide-react"
+import { User, Bot, ChevronRight } from "lucide-react"
 
 interface MessageBubbleProps {
   message: {
@@ -19,14 +20,15 @@ interface MessageBubbleProps {
   onRetry?: () => void
 }
 
-function parseContent(content: string) {
-  const parts: Array<
-    | { type: "text"; content: string }
-    | { type: "tool_call"; name: string; input: string; output: string }
-  > = []
+type ContentPart =
+  | { type: "text"; content: string }
+  | { type: "thinking"; content: string }
+  | { type: "tool_call"; name: string; input: string; output: string }
 
+function parseContent(content: string): ContentPart[] {
+  const parts: ContentPart[] = []
   const regex =
-    /<<<TOOL_CALL:(.*?)>>>\n([\s\S]*?)\n([\s\S]*?)<<<END_TOOL_CALL>>>/g
+    /<think>([\s\S]*?)<\/think>|<<<TOOL_CALL:(.*?)>>>\n([\s\S]*?)\n([\s\S]*?)<<<END_TOOL_CALL>>>/g
   let lastIndex = 0
   let match
 
@@ -35,12 +37,17 @@ function parseContent(content: string) {
       const text = content.substring(lastIndex, match.index).trim()
       if (text) parts.push({ type: "text", content: text })
     }
-    parts.push({
-      type: "tool_call",
-      name: match[1],
-      input: match[2],
-      output: match[3].trim(),
-    })
+    if (match[1] !== undefined) {
+      const thinking = match[1].trim()
+      if (thinking) parts.push({ type: "thinking", content: thinking })
+    } else {
+      parts.push({
+        type: "tool_call",
+        name: match[2],
+        input: match[3],
+        output: match[4].trim(),
+      })
+    }
     lastIndex = regex.lastIndex
   }
 
@@ -49,7 +56,39 @@ function parseContent(content: string) {
     if (text) parts.push({ type: "text", content: text })
   }
 
-  return parts.length > 0 ? parts : [{ type: "text" as const, content }]
+  return parts.length > 0 ? parts : [{ type: "text", content }]
+}
+
+function stripThinking(content: string): string {
+  let result = content.replace(/<think>[\s\S]*?<\/think>/g, "")
+  result = result.replace(/<think>[\s\S]*$/, "")
+  return result.trim()
+}
+
+function isCurrentlyThinking(content: string): boolean {
+  return content.includes("<think>") && !content.includes("</think>")
+}
+
+function ThinkingBlock({ content }: { content: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="mb-3">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+      >
+        <ChevronRight
+          className={`h-3 w-3 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+        />
+        <span>Thinking</span>
+      </button>
+      {open && (
+        <div className="mt-1.5 rounded-lg border border-white/6 bg-zinc-900/50 px-3 py-2.5 text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap font-mono">
+          {content}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function preprocessMarkdown(content: string): string {
@@ -205,11 +244,19 @@ export function MessageBubble({
 
         {isStreaming && !isUser ? (
           <div className="max-w-full min-w-0 overflow-hidden text-sm">
-            <MarkdownContent content={message.content} />
+            {isCurrentlyThinking(message.content) && (
+              <div className="mb-2 flex items-center gap-1.5 text-xs text-zinc-500">
+                <div className="h-1 w-1 animate-pulse rounded-full bg-violet-400" />
+                <span>Thinking...</span>
+              </div>
+            )}
+            <MarkdownContent content={stripThinking(message.content)} />
           </div>
         ) : (
           parts.map((part, i) =>
-            part.type === "text" ? (
+            part.type === "thinking" ? (
+              <ThinkingBlock key={i} content={part.content} />
+            ) : part.type === "text" ? (
               <div
                 key={i}
                 className="max-w-full min-w-0 overflow-hidden text-sm"

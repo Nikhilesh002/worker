@@ -1,4 +1,4 @@
-import { BaseMessage, SystemMessage } from "@langchain/core/messages"
+import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages"
 import { z } from "zod"
 import { groqApiKeyManager } from "./groqApiKeyManager"
 import {
@@ -62,6 +62,10 @@ function getTierForRoute(route: RouteDecision): RoutedModelTier {
     return "expert"
   }
 
+  if (route.complexity === "simple") {
+    return "primary"
+  }
+
   if (
     route.complexity === "medium" ||
     route.needsTools ||
@@ -103,101 +107,14 @@ async function classifyRoute(
   messages: BaseMessage[],
   traceContext?: RoutedModelTraceContext,
 ): Promise<RouteDecision> {
-  const latestUserText = [...messages]
+  const latestHumanMessage = [...messages]
     .reverse()
-    .find((message) => message.getType?.() === "human")
-    ?.content
-
-  const text = Array.isArray(latestUserText)
-    ? latestUserText
-        .map((part) => (typeof part === "string" ? part : ""))
-        .join(" ")
-    : typeof latestUserText === "string"
-      ? latestUserText
-      : ""
-
-  if (
-    /\btranslate\b|\btranslation\b|\binto english\b|\binto hindi\b|\binto spanish\b|\bfrom\s+[a-z]+\s+to\s+[a-z]+\b/i.test(
-      text,
-    )
-  ) {
-    return {
-      complexity: "simple",
-      needsTools: true,
-      needsRetrieval: false,
-      domain: "general",
-    }
-  }
-
-  if (
-    /\b(calculate|compute|solve|simplify|derivative|integral|what is \d[\d\s+\-*/^()]*|sqrt|factorial)\b/i.test(
-      text,
-    )
-  ) {
-    return {
-      complexity: "simple",
-      needsTools: true,
-      needsRetrieval: false,
-      domain: "math",
-    }
-  }
-
-  if (
-    /\b(what'?s? (the )?(date|time|day)|current (date|time)|today'?s? date|right now|what time is it)\b/i.test(
-      text,
-    )
-  ) {
-    return {
-      complexity: "simple",
-      needsTools: true,
-      needsRetrieval: false,
-      domain: "general",
-    }
-  }
-
-  if (
-    /\b(convert \d|how many (km|miles|kg|pounds|liters?|gallons?|celsius|fahrenheit)|in (km|miles|kg|lb|usd|eur|gbp|inr))\b/i.test(
-      text,
-    )
-  ) {
-    return {
-      complexity: "simple",
-      needsTools: true,
-      needsRetrieval: false,
-      domain: "general",
-    }
-  }
-
-  if (
-    /\b(roll|toss|flip)\b.*\b(dice?|coin|d\d+)\b|\broll a d\d+\b|\brandom (number|integer)\b|\bgenerate.*(random|number)\b/i.test(
-      text,
-    )
-  ) {
-    return {
-      complexity: "simple",
-      needsTools: true,
-      needsRetrieval: false,
-      domain: "general",
-    }
-  }
-
-  // Any "time in [city/country]" query → get_datetime, no retrieval needed
-  if (
-    /\b(time|clock)\b.{0,20}\b(in|at|for)\b|\btime zone\b|\bwhat'?s? the time\b/i.test(text)
-  ) {
-    return {
-      complexity: "simple",
-      needsTools: true,
-      needsRetrieval: false,
-      domain: "general",
-    }
-  }
+    .find((m) => m instanceof HumanMessage)
 
   const { model, apiKey } = createRouterModelWithKey()
 
   try {
     const router = model.withStructuredOutput(RouteSchema)
-    const latestHumanMessage = [...messages].reverse().find((m) => m.getType?.() === "human")
     const route = await router.invoke([
       new SystemMessage(ROUTER_SYSTEM_PROMPT),
       ...(latestHumanMessage ? [latestHumanMessage] : []),

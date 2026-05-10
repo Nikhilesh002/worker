@@ -16,7 +16,7 @@ function createGroqModel(options: {
 
 export function createQwenModelWithKey() {
   return createGroqModel({
-    model: "qwen/qwen3-32b",
+    model: "openai/gpt-oss-20b",
     temperature: 0.7,
     maxTokens: 2048,
     streaming: true,
