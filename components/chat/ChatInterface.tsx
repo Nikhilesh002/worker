@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { flushSync } from "react-dom"
-import { MessageBubble, MarkdownContent } from "./MessageBubble"
+import { MessageBubble } from "./MessageBubble"
 import { ToolCallDisplay } from "./ToolCallDisplay"
 import { Send, Sparkles, Bot } from "lucide-react"
 
@@ -33,7 +33,7 @@ const SUGGESTIONS = [
   "Calculate sqrt(144) + 2^10",
   "Tell me about quantum computing",
   "What time is it in New York?",
-  "Read https://example.com",
+  "Summarize https://en.wikipedia.org/wiki/C_(programming_language)",
 ]
 
 export function ChatInterface({
@@ -46,6 +46,7 @@ export function ChatInterface({
   const [streamedContent, setStreamedContent] = useState("")
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([])
   const [streamKey, setStreamKey] = useState(0)
+  const [messageRenderKey, setMessageRenderKey] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const currentChatId = useRef(chatId)
@@ -119,8 +120,13 @@ export function ChatInterface({
         if (finalContent.trim()) {
           setMessages((prev) => [
             ...prev,
-            { id: `msg-${Date.now()}`, content: finalContent, role: "assistant" },
+            {
+              id: `msg-${Date.now()}`,
+              content: finalContent,
+              role: "assistant",
+            },
           ])
+          setMessageRenderKey((k) => k + 1)
         }
         setStreamedContent("")
         setToolCalls([])
@@ -163,7 +169,11 @@ export function ChatInterface({
               setToolCalls((prev) => {
                 const next = [
                   ...prev,
-                  { name: data.name, input: data.input, status: "running" as const },
+                  {
+                    name: data.name,
+                    input: data.input,
+                    status: "running" as const,
+                  },
                 ]
                 toolCallsRef.current = next
                 return next
@@ -177,7 +187,11 @@ export function ChatInterface({
                 )
                 if (idx === -1) return prev
                 const updated = [...prev]
-                updated[idx] = { ...updated[idx], output: data.output, status: "done" }
+                updated[idx] = {
+                  ...updated[idx],
+                  output: data.output,
+                  status: "done",
+                }
                 toolCallsRef.current = updated
                 return updated
               })
@@ -281,17 +295,25 @@ export function ChatInterface({
           </div>
         ) : (
           <div className="mx-auto w-full max-w-2xl space-y-4 p-4 pb-4 xl:max-w-3xl">
-            {messages.map((msg) => (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                onRetry={
-                  msg.status === "error" && msg.retryPrompt
-                    ? () => handleSend(msg.retryPrompt)
-                    : undefined
-                }
-              />
-            ))}
+            {messages.map((msg, index) => {
+              const isLast = index === messages.length - 1
+              const key =
+                isLast && msg.role === "assistant"
+                  ? `${msg.id}-${messageRenderKey}`
+                  : msg.id
+
+              return (
+                <MessageBubble
+                  key={key}
+                  message={msg}
+                  onRetry={
+                    msg.status === "error" && msg.retryPrompt
+                      ? () => handleSend(msg.retryPrompt)
+                      : undefined
+                  }
+                />
+              )
+            })}
 
             {/* Unified streaming indicator */}
             {isStreaming && (
@@ -303,10 +325,12 @@ export function ChatInterface({
                   {toolCalls.map((tc, i) => (
                     <ToolCallDisplay key={i} toolCall={tc} />
                   ))}
-                  <div className="w-fit max-w-[min(100%,42rem)] xl:max-w-3xl min-w-0 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm text-zinc-200">
+                  <div className="w-fit max-w-[min(100%,42rem)] min-w-0 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm text-zinc-200 xl:max-w-3xl">
                     {streamedContent ? (
                       <div className="max-w-full min-w-0 overflow-hidden">
-                        <MarkdownContent key={streamKey} content={streamedContent} />
+                        <p className="break-words whitespace-pre-wrap">
+                          {streamedContent}
+                        </p>
                         <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-cyan-400" />
                       </div>
                     ) : (

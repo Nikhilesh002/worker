@@ -167,8 +167,8 @@ export async function POST(req: Request) {
         ]
 
         const flushPendingStreamText = () => {
-          const text = pendingStreamText.trimEnd()
-          if (text) {
+          const text = pendingStreamText
+          if (text.length > 0) {
             send({ type: "token", content: text })
           }
           pendingStreamText = ""
