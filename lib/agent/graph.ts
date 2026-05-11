@@ -14,8 +14,7 @@ import {
 } from "@/lib/observability/langsmith"
 
 const RECENT_MESSAGES_COUNT = 10
-const MAX_TOOLS_PER_ITERATION = 3
-
+const MAX_TOOLS_PER_ITERATION = 5
 
 const toolNames = allTools.map((tool) => tool.name)
 const toolMap = new Map(allTools.map((tool) => [tool.name, tool]))
@@ -116,7 +115,8 @@ export async function* streamAgent(
       if (toolsThisIteration >= MAX_TOOLS_PER_ITERATION) {
         workingMessages.push(
           new ToolMessage({
-            content: "Tool limit reached. Synthesize from results already gathered.",
+            content:
+              "Tool limit reached. Synthesize from results already gathered.",
             tool_call_id: toolCall.id || "tool-call",
           })
         )
@@ -157,5 +157,44 @@ export async function* streamAgent(
       )
     }
 
+    const needsFinalResponse =
+      toolsThisIteration >= MAX_TOOLS_PER_ITERATION ||
+      iteration === maxIterations - 1
+
+    if (needsFinalResponse) {
+      workingMessages.push(
+        new SystemMessage(
+          "Provide the final answer now. Do not call any more tools."
+        )
+      )
+
+      let finalMessage: AIMessage | null = null
+      const finalStream = await retry(
+        () => boundModel.stream(workingMessages, traceConfig as any),
+        2,
+        400 + Math.random() * 600
+      )
+
+      for await (const chunk of finalStream) {
+        finalMessage = finalMessage
+          ? ((finalMessage as any).concat(chunk) as AIMessage)
+          : (chunk as AIMessage)
+
+        const content =
+          typeof (chunk as any).text === "string" && (chunk as any).text
+            ? (chunk as any).text
+            : typeof chunk.content === "string"
+              ? chunk.content
+              : ""
+        if (typeof content === "string" && content) {
+          yield { type: "token", content }
+        }
+      }
+
+      if (finalMessage) {
+        workingMessages.push(finalMessage)
+      }
+      break
+    }
   }
 }
