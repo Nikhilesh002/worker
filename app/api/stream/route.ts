@@ -9,6 +9,7 @@ import {
 import { summarizeMessages } from "@/lib/agent/summarize"
 import { AGENT_SYSTEM_PROMPT } from "@/lib/prompts"
 import { type LangSmithTraceContext } from "@/lib/observability/langsmith"
+import { awaitAllCallbacks } from "@langchain/core/callbacks/promises"
 
 export const maxDuration = 60
 
@@ -252,6 +253,9 @@ export async function POST(req: Request) {
         clearInterval(pingInterval)
         await persistAssistantMessage()
         safeClose()
+        void awaitAllCallbacks().catch((e) => {
+          console.error("Failed to flush LangSmith traces:", e)
+        })
       }
     },
   })
